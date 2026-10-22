@@ -1,0 +1,4 @@
+<!-- Magic's logo, as on the banner in src/doc/html/graphics/magic_title8_3.png,
+     redrawn: poly (red) crossing diffusion (green), the overlap stippled.
+     Copyright (C) 1985, 1990 Regents of the University of California; see LICENSE. -->
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><defs><pattern id='s' width='2' height='2' patternUnits='userSpaceOnUse'><rect width='2' height='2' fill='#2e8b57'/><rect width='1' height='1' fill='#cd0000'/></pattern></defs><g transform='translate(16 16) rotate(-28)'><rect x='-14.5' y='-8' width='28' height='15' fill='#cd0000'/><rect x='-6' y='-14' width='14' height='28' fill='#2e8b57'/><rect x='-6' y='-8' width='14' height='15' fill='url(#s)'/></g></svg>

@@ -72,7 +72,7 @@ TOP_EXTRA_LIBS += \
 SCMOS_DISPLAY := $(wildcard ${MAGICSRC}/scmos/mos.*dstyle ${MAGICSRC}/scmos/mos.*.cmap)
 TOP_EXTRA_LIBS += $(foreach f,$(SCMOS_DISPLAY),--embed-file $(f)@/magic/sys/current/$(notdir $(f)))
 
-# Interactive web build (web/build.sh sets MAGIC_WEB=1): add the WEB graphics
+# Interactive web build (../build.sh sets MAGIC_WEB=1): add the WEB graphics
 # driver (graphics/grWeb.c) and the event entry points (magic/magicWeb.c).
 # MAGIC_WEB also enables X11-style extended macros in utils/macros.c and
 # time-sliced background DRC in drc/DRCcontin.c.  The cursor and window

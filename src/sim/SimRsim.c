@@ -57,9 +57,10 @@ static bool InitRsim(const char *hello_msg);
 /*
  * The web build has no processes or pipes.  IRSIM is a second WebAssembly
  * module on the page, driven by the JavaScript object Module.magicRsim
- * (web/rsim.js): starting it loads the files named on the command line,
- * a write runs the command lines in IRSIM at once and queues what IRSIM
- * printed followed by its prompt, and a read takes from that queue.  The
+ * (rsim.js, in the web app at the top of the repository): starting it
+ * loads the files named on the command line, a write runs the command
+ * lines in IRSIM at once and queues what IRSIM printed followed by its
+ * prompt, and a read takes from that queue.  The
  * code above the pipe (prompts, replies, node labels) is unchanged.
  */
 #include <emscripten/emscripten.h>

@@ -39,7 +39,8 @@
 #include "dbwind/dbwtech.h"
 
 /* ------------------------------------------------------------------------
- * JavaScript side.  Every call lands in Module.magicWeb (web/magic-canvas.js).
+ * JavaScript side.  Every call lands in Module.magicWeb (canvas-driver.js,
+ * in the web app at the top of the repository).
  * Coordinates passed to JavaScript are canvas coordinates: origin at the
  * top left, y down.
  * ------------------------------------------------------------------------

@@ -18,12 +18,12 @@
 //                                      up to date, and show them in the analyzer
 //   unwatchnode node...                stop
 //   watchtime                          open the analyzer
-// The analyzer and the node lists are the IRSIM app's (irsim/web), fed by
+// The analyzer and the node lists are the IRSIM app's (the irsim submodule), fed by
 // the same IRSIM.
 
 import {RsimBridge} from "./rsim.js";
-import {Analyzer} from "../irsim/web/analyzer.js";
-import {TraceManager} from "../irsim/web/tracemgr.js";
+import {Analyzer} from "./irsim/analyzer.js";
+import {TraceManager} from "./irsim/tracemgr.js";
 
 export class Simulation {
     // host: {magic, print, run(wid, line, quiet), capture(wid, line), projectRoot(), desktop, saveBlob,

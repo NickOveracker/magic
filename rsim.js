@@ -3,7 +3,7 @@
 //
 // Desktop Magic starts IRSIM as a process and talks to it through pipes
 // (sim/SimRsim.c).  Here IRSIM is a second WebAssembly module on the page,
-// from the irsim submodule (../irsim/web/irsim.js), and this object stands
+// from the irsim submodule (irsim/irsim.js), and this object stands
 // in for the pipes: Magic's C code calls start(), write(), read(), stop()
 // and mode() through Module.magicRsim.  write() runs each command line in
 // IRSIM at once and queues what it printed followed by its prompt, so Magic
@@ -12,8 +12,8 @@
 // IRSIM is loaded only when a simulator command first needs it, and dropped
 // again when the simulator quits, as the desktop process would be.
 
-const IRSIM_DIR = new URL("../irsim/web/", import.meta.url);
-const PRM_DIR = new URL("../irsim/lib/prm/", import.meta.url);
+const IRSIM_DIR = new URL("irsim/", import.meta.url);
+const PRM_DIR = new URL("irsim/src/lib/prm/", import.meta.url);
 const PRMS = ["scmos100", "scmos30", "scmos35", "scmos50_3v", "scmos50_5v", "scmos60", "scmos1_6um", "scmos2um",
     "amiabn.80.n99z.5", "amic5.30.n98s.3.3", "amicwl.50.n97l.5", "hpcmos10.20.n98v.3.3", "hpcmos14.30.n9ae.3.3",
     "hpcmos26.40.n88x.5", "orbit.60.n96e.5", "tsmc18.10.nxxx.1.8", "tsmc25.15.n99y.2.5", "tsmc35.20.n98t.3.3",
