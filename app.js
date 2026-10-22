@@ -752,14 +752,14 @@ const aboutMenu = [
     {label: "Source code: Magic", href: "https://github.com/NickOveracker/magic/tree/web"},
     {label: "Source code: IRSIM", href: "https://github.com/NickOveracker/irsim/tree/wasm"},
 ];
-$("#top-menus").appendChild(menuBar([["Project", projectMenu], ["Demos", demoMenu], ["About", aboutMenu],
-    ["Ko-fi", "https://ko-fi.com/twentynine"]], "Page menu", {onDone: () => refocusCanvas()}));
+$("#top-menus").appendChild(menuBar([["Project", projectMenu], ["Demos", demoMenu], ["About", aboutMenu]], "Page menu",
+    {onDone: () => refocusCanvas()}));
 
 // Buttons, check boxes and drop-downs used with the mouse give the keyboard back to the layout
 // window afterwards, so that Magic's keys (space, letters) don't press them again.  Used with
 // the keyboard, they keep focus.
 document.addEventListener("click", event => {
-    const control = event.target.closest("button, input[type=checkbox], label");
+    const control = event.target.closest("button, input[type=checkbox], label, #kofi");
     if(event.detail === 0 || !control || control.closest("dialog, .mb-menu, .mb-bar, #help, .command-row")) {
         return;
     }

@@ -34,6 +34,11 @@ button, select { font: inherit; color: inherit; background: var(--head); border:
 button:hover, select:hover { border-color: var(--accent); }
 button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 #top-menus .mb-button { font-size: 14px; min-height: 28px; padding: 3px 10px; border-color: var(--rule); background: var(--head); }
+#kofi { display: inline-flex; align-items: center; gap: 5px; padding: 2px 10px; border: 1px solid #ff5e5b;
+  border-radius: 999px; background: rgba(255, 94, 91, .1); color: var(--fg); font-size: 12px; text-decoration: none;
+  white-space: nowrap; }
+#kofi:hover, #kofi:focus-visible { background: rgba(255, 94, 91, .22); }
+#kofi span { color: #ff5e5b; font-size: 13px; }
 #status { margin-left: auto; color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden;
   text-overflow: ellipsis; max-width: 40vw; }
 
@@ -70,6 +75,7 @@ body.dragging #desktop::after { content: "Drop files, a folder, or a .zip / .tar
 
 @media (max-width: 640px) {
   .toolbar h1 small, #status { display: none; }
+  #kofi { margin-left: auto; }
   #console { height: 140px; }
 }
 </style>
@@ -80,6 +86,7 @@ body.dragging #desktop::after { content: "Drop files, a folder, or a .zip / .tar
   <div id="top-menus"></div>
   <button type="button" id="help-toggle" aria-expanded="false" aria-controls="help">Help</button>
   <span id="status" role="status">Loading…</span>
+  <a id="kofi" href="https://ko-fi.com/twentynine" target="_blank" rel="noopener"><span aria-hidden="true">♥</span>Support on Ko-fi</a>
   <input type="file" id="pick-files" multiple hidden accept=".mag,.gds,.gds2,.tech,.zip,.tar,.tgz,.gz,.ext,.sim,.spice,.cif,.lef,.def">
   <input type="file" id="pick-folder" webkitdirectory hidden>
 </header>
