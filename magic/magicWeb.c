@@ -34,6 +34,7 @@
 #include "dbwind/dbwind.h"
 #include "drc/drc.h"
 #include "commands/commands.h"
+#include "sim/sim.h"
 #include "cif/CIFint.h"
 #include "cif/CIFread.h"
 #include "extract/extractInt.h"
@@ -181,6 +182,21 @@ magic_web_command(int wid, const char *command)
     result = TxDispatchString(command, FALSE);
     magicWebFlush();
     return result;
+}
+
+/* A line typed at the simulator prompt in "rsim" mode (sim/SimRsim.c).
+ * Returns 1 while the page should stay in rsim mode.
+ */
+EMSCRIPTEN_KEEPALIVE int
+magic_web_rsim_line(const char *line)
+{
+    int stay;
+
+    if (!magicWebReady || line == NULL) return 0;
+    stay = SimWebRsimLine(line) ? 1 : 0;
+    WindUpdate();
+    magicWebFlush();
+    return stay;
 }
 
 /* Run background DRC for at most "ms" milliseconds.  Returns 1 if DRC

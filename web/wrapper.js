@@ -493,10 +493,33 @@ class LayoutFrame {
                 }
             }},
             {label: "Crosshair", checked: () => gui.opts.crosshair, action: () => gui.setCrosshair(!gui.opts.crosshair)},
+            "-",
+            ...this.simulationItems(),
         ];
 
         return [["File", file], ["Edit", edit], ["Cell", cell], ["Window", windowMenu], ["Layers", layers],
             ["Drc", drc], ["Options", options]];
+    }
+
+    // IRSIM, through simulation.js: start it, or show its analyzer and node lists.
+    simulationItems() {
+        const sim = this.app.simulation;
+        if(!sim) {
+            return [];
+        }
+        const notRunning = "Start IRSIM first (Start IRSIM, or the irsim command)";
+        return [
+            sim.running ?
+                {label: "IRSIM prompt", action: () => this.run("rsim")} :
+                {label: "Start IRSIM", title: "Extract the window's cell, write its .sim and start IRSIM (the irsim command)",
+                    action: () => this.app.run(this.wid, "irsim", false)},
+            {label: "IRSIM Analyzer", checked: () => sim.analyzer.isOpen(), disabled: !sim.running, title: sim.running ? "" : notRunning,
+                action: () => (sim.analyzer.isOpen() ? sim.analyzer.close() : sim.analyzer.open())},
+            {label: "IRSIM Node Lists", checked: () => sim.traceManager.isOpen(), disabled: !sim.running, title: sim.running ? "" : notRunning,
+                action: () => (sim.traceManager.isOpen() ? sim.traceManager.close() : sim.traceManager.open())},
+            {label: "Watch Selected Nodes", disabled: !sim.running, title: sim.running ? "watchnode: label the selected paint's nodes with their values" : notRunning,
+                action: () => this.app.run(this.wid, "watchnode", false)},
+        ];
     }
 
     // ----- Menu actions that need a dialog

@@ -29,7 +29,9 @@ const STYLES = `
 
 export const HEADER_HEIGHT = 30;
 
-let topZ = 10;
+// Stacking order is shared by every copy of this module on the page (the Magic
+// app and the IRSIM app each have one).
+const shared = globalThis.__floatingWindows || (globalThis.__floatingWindows = {topZ: 10});
 const TOPMOST = 100000;
 
 export class FloatingWindow {
@@ -74,7 +76,7 @@ export class FloatingWindow {
     }
 
     raise() {
-        this.element.style.zIndex = ++topZ + (this.topmost ? TOPMOST : 0);
+        this.element.style.zIndex = ++shared.topZ + (this.topmost ? TOPMOST : 0);
     }
 
     lower() {

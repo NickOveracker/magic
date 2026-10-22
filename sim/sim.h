@@ -22,6 +22,9 @@ extern 	bool	SimSawAbortString;
 extern 	bool	SimRsimRunning;
 extern	bool	SimIsGetnode;
 extern	bool	SimHasCoords;
+#ifdef MAGIC_WEB
+extern	bool	SimWebRsimLine(const char *line);
+#endif
 extern	bool	SimUseCoords;
 extern  bool	SimIgnoreGlobals;
 

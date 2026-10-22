@@ -6,6 +6,8 @@ HTML canvas inside a movable, resizable, collapsible window on the page.
 
 ## Build and run
 
+    git submodule update --init irsim          # IRSIM, for the simulator commands
+
     EMSDK_DIR=/path/to/emsdk web/build.sh     # --debug for a -g build
     python3 -m http.server                     # from the repository root
     # open http://localhost:8000/web/
@@ -29,6 +31,9 @@ HTML canvas inside a movable, resizable, collapsible window on the page.
 | `web/wrapper.js` | The Tcl/Tk wrapper's per-window GUI (`tcltk/wrapper.tcl`, `toolbar.tcl`): File, Edit, Cell, Window, Layers, Drc and Options menus, the DRC switch, caption and coordinates, the layer toolbar and the window command entry. |
 | `web/managers.js` | The cell, library, technology and DRC managers from the Options menu (`cellmgr.tcl`, `libmgr.tcl`, `drcmgr.tcl`). |
 | `web/menu.js`, `web/dialog.js` | Drop-down menus and the prompt dialogs. |
+| `sim/SimRsim.c` | Magic's simulator interface. Under `MAGIC_WEB` the process and its two pipes are replaced by calls to `Module.magicRsim` (start, write, read, stop), and the `rsim` prompt loop by `magic_web_rsim_line`, one line at a time. |
+| `web/rsim.js` | That bridge: runs IRSIM from the `irsim` submodule (`../irsim/web/irsim.js`) as a second WebAssembly module, loaded on first use and dropped on `q`. |
+| `web/simulation.js` | The Tcl integration's `irsim`, `watchnode`, `unwatchnode` and `watchtime`, and the IRSIM app's analyzer and node lists fed from the same simulator. |
 | `web/app.js` | Page logic: console, command line, project loading, download, demos. |
 
 ## Using it
@@ -60,6 +65,14 @@ HTML canvas inside a movable, resizable, collapsible window on the page.
   layer, p, e, s, S, l and u paint, erase, select more or less, lock and
   unlock. The toolbar order (Layers > Reorder layers) is kept per technology
   in the browser.
+- Simulation: `irsim [prm] [cell]` extracts and runs `ext2sim` if there is
+  no .sim yet, starts IRSIM (default parameters `scmos100`) and enters its
+  `irsim>` prompt; `.` returns to Magic and `q` quits IRSIM. Magic's own
+  `rsim`, `startrsim`, `simcmd` and `getnode` and the rsim tool work as on the
+  desktop, with node names by transistor position. `watchnode` labels the
+  selected node with its value and keeps it up to date. IRSIM's supplies are
+  `Vdd` and `Gnd`: a cell labelled `VDD`/`GND` needs `h VDD` and `l GND` first.
+  Files named on the IRSIM command line are copied from the project folder.
 - The default demo is a mirror full adder exported from Stixu and sized for
   speed; `?demo=NAME` picks another file from `demo/`.
 

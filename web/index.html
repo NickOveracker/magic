@@ -113,6 +113,13 @@ body.dragging #desktop::after { content: "Drop files, a folder, or a .zip / .tar
     <dt>Middle, Alt+click</dt><dd>Paint it into the box; Shift+middle erases</dd>
     <dt>p e s S l u</dt><dd>With the pointer on a layer: paint, erase, select more, select less, lock, unlock</dd>
   </dl>
+  <h2>Simulation (IRSIM)</h2>
+  <p><b>irsim</b> [prm] [cell] extracts the cell if needed, writes its .sim, starts IRSIM (loaded only now) and
+    gives you its <b>irsim&gt;</b> prompt: h, l, s, d, ana and the other IRSIM commands. A cell whose supplies
+    aren't named Vdd and Gnd needs them driven first, e.g. <b>h VDD</b> and <b>l GND</b>. Type <b>.</b> to return
+    to Magic, where <b>simcmd</b> d applies an IRSIM command to the selection, <b>watchnode</b> labels the selected
+    node with its value, and the rsim tool (space) shows node values on a middle click. <b>q</b> at the prompt
+    quits IRSIM. Options &gt; IRSIM has the analyzer and node lists.</p>
   <h2>Projects</h2>
   <p>Project > Open files or Open folder copies .mag files, a folder, or one .zip, .tar or .tar.gz archive into
     the page; you can also drop them on it. The cell that no other cell uses is opened. A .tech file in the
@@ -128,7 +135,7 @@ body.dragging #desktop::after { content: "Drop files, a folder, or a .zip / .tar
   <div class="command-row">
     <button type="button" id="console-toggle" aria-expanded="true" aria-controls="log" title="Show or hide the console">☰</button>
     <label for="command">:</label>
-    <input id="command" autocomplete="off" spellcheck="false" placeholder="Magic command, e.g. drc count, extract all, paint m1">
+    <input id="command" autocomplete="off" spellcheck="false" placeholder="Magic command, e.g. drc count, extract all, paint m1, irsim">
   </div>
 </section>
 

@@ -27,7 +27,8 @@ const STYLES = `
 .mb-sep { height: 1px; margin: 4px 0; background: var(--rule); }
 `;
 
-let openMenu = null;     // {button, list}
+// The open menu is shared by every copy of this module on the page, so that only one menu is ever open.
+const state = globalThis.__menus || (globalThis.__menus = {open: null, listening: false});
 
 function addStyles() {
     if(!document.getElementById("mb-styles")) {
@@ -39,31 +40,34 @@ function addStyles() {
 }
 
 export function closeMenus() {
-    if(openMenu) {
-        openMenu.list.remove();
-        openMenu.button.setAttribute("aria-expanded", "false");
-        openMenu = null;
+    if(state.open) {
+        state.open.list.remove();
+        state.open.button.setAttribute("aria-expanded", "false");
+        state.open = null;
     }
 }
 
-document.addEventListener("pointerdown", event => {
-    if(openMenu && !openMenu.list.contains(event.target) && event.target !== openMenu.button) {
-        closeMenus();
-    }
-}, true);
-window.addEventListener("blur", closeMenus);
-document.addEventListener("keydown", event => {
-    if(event.key === "Escape" && openMenu) {
-        const {button, done} = openMenu;
-        closeMenus();
-        if(done) {
-            done();
-        } else {
-            button.focus({preventScroll: true});
+if(!state.listening) {
+    state.listening = true;
+    document.addEventListener("pointerdown", event => {
+        if(state.open && !state.open.list.contains(event.target) && event.target !== state.open.button) {
+            closeMenus();
         }
-    }
-});
-window.addEventListener("resize", closeMenus);
+    }, true);
+    window.addEventListener("blur", closeMenus);
+    document.addEventListener("keydown", event => {
+        if(event.key === "Escape" && state.open) {
+            const {button, done} = state.open;
+            closeMenus();
+            if(done) {
+                done();
+            } else {
+                button.focus({preventScroll: true});
+            }
+        }
+    });
+    window.addEventListener("resize", closeMenus);
+}
 
 // A menu bar: menus is [[title, items], ...].  Returns the bar element.
 // After a choice made with the mouse, options.onDone() runs instead of focus
@@ -83,12 +87,12 @@ export function menuBar(menus, label, options = {}) {
         button.setAttribute("aria-haspopup", "menu");
         button.setAttribute("aria-expanded", "false");
         button.addEventListener("click", event => {
-            if(openMenu && openMenu.button === button) {
+            if(state.open && state.open.button === button) {
                 // A menu that opened as the pointer slid onto it stays open when clicked.
-                if(openMenu.byHover) {
-                    openMenu.byHover = false;
+                if(state.open.byHover) {
+                    state.open.byHover = false;
                 } else {
-                    const done = openMenu.done;
+                    const done = state.open.done;
                     closeMenus();
                     // Closed with the mouse: give the keyboard back, as after a choice.
                     if(event.detail > 0 && options.onDone) {
@@ -102,9 +106,9 @@ export function menuBar(menus, label, options = {}) {
             }
         });
         button.addEventListener("pointerenter", () => {
-            if(openMenu && openMenu.button !== button && bar.contains(openMenu.button)) {
+            if(state.open && state.open.button !== button && bar.contains(state.open.button)) {
                 open(button, items, false, true);
-                openMenu.byHover = true;
+                state.open.byHover = true;
             }
         });
         button.addEventListener("keydown", event => {
@@ -196,7 +200,7 @@ export function menuBar(menus, label, options = {}) {
         list.style.left = Math.max(4, Math.min(r.left, window.innerWidth - width - 4)) + "px";
         list.style.top = (r.bottom + height + 4 <= window.innerHeight ? r.bottom + 2 : Math.max(4, r.top - height - 2)) + "px";
         button.setAttribute("aria-expanded", "true");
-        openMenu = {button, list, byHover: false, done: byPointer ? options.onDone : null};
+        state.open = {button, list, byHover: false, done: byPointer ? options.onDone : null};
         if(focusFirst) {
             list.querySelector(".mb-item")?.focus();
         }

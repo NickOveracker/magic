@@ -53,6 +53,34 @@
 
 static bool InitRsim(const char *hello_msg);
 
+#ifdef MAGIC_WEB
+/*
+ * The web build has no processes or pipes.  IRSIM is a second WebAssembly
+ * module on the page, driven by the JavaScript object Module.magicRsim
+ * (web/rsim.js): starting it loads the files named on the command line,
+ * a write runs the command lines in IRSIM at once and queues what IRSIM
+ * printed followed by its prompt, and a read takes from that queue.  The
+ * code above the pipe (prompts, replies, node labels) is unchanged.
+ */
+#include <emscripten/emscripten.h>
+
+EM_JS(int, webRsimStart, (const char *args), {
+    return Module.magicRsim ? Module.magicRsim.start(UTF8ToString(args)) : -1;
+});
+EM_JS(int, webRsimWrite, (const char *text, int n), {
+    return Module.magicRsim.write(UTF8ToString(text, n));
+});
+EM_JS(int, webRsimRead, (char *buf, int max), {
+    return Module.magicRsim.read(buf, max);
+});
+EM_JS(void, webRsimStop, (void), { if (Module.magicRsim) Module.magicRsim.stop(); });
+EM_JS(void, webRsimMode, (int on), { if (Module.magicRsim) Module.magicRsim.mode(on); });
+
+#define simWrite(fd, buf, n)	webRsimWrite(buf, n)
+#else
+#define simWrite(fd, buf, n)	write(fd, buf, n)
+#endif
+
 #define BUF_SIZE	1024
 #define	LINEBUF_SIZE	256
 #define	READBUF_SIZE	4096 + LINEBUF_SIZE
@@ -171,6 +199,29 @@ SimStartRsim(
 	TxPrintf(E_RUNNING);
 	return(FALSE);
     }
+
+#ifdef MAGIC_WEB
+    {
+	char args[BUF_SIZE];
+	int i;
+
+	args[0] = '\0';
+	for (i = 1; argv[i] != NULL; i++)
+	{
+	    if (strlen(args) + strlen(argv[i]) + 2 >= sizeof args) break;
+	    if (args[0] != '\0') strcat(args, " ");
+	    strcat(args, argv[i]);
+	}
+	if (webRsimStart(args) != 0)
+	{
+	    TxError("Could not start IRSIM.\n");
+	    return(FALSE);
+	}
+	SimRsimRunning = TRUE;
+	pipeIn = pipeOut = -1;
+	return(TRUE);
+    }
+#endif
 
     /* Create the pipes.  One is for Magic sending to rsim, the other
      * is for rsim sending to Magic.
@@ -318,6 +369,15 @@ SimConnectRsim(
 	TxPrintf("%s", HELLO_MSG);
     }
 
+#ifdef MAGIC_WEB
+    /* The page's command line sends each line to SimWebRsimLine() until
+     * "." or "q", instead of this loop reading the terminal.
+     */
+    RsimJustStarted = FALSE;
+    webRsimMode(1);
+    return;
+#endif
+
 
     while (TRUE) {
 
@@ -349,7 +409,7 @@ SimConnectRsim(
 
 	/* Send the command to Rsim and get the reply. */
 
-	if (write(pipeOut, keyBoardBuf, strlen(keyBoardBuf)) < 0) {
+	if (simWrite(pipeOut, keyBoardBuf, strlen(keyBoardBuf)) < 0) {
 	    TxPrintf(E_PIPEWR);
 	    SimStopRsim();
 	    return;
@@ -365,6 +425,57 @@ SimConnectRsim(
 	}
     }
 }
+
+
+#ifdef MAGIC_WEB
+/*
+ *-----------------------------------------------------------------------
+ * SimWebRsimLine
+ *
+ *	One line typed at the simulator prompt in the page's "rsim" mode:
+ *	what each pass of the loop in SimConnectRsim does.  "." escapes back
+ *	to Magic and "q" quits the simulator.
+ *
+ * Results:
+ *	TRUE while the page should stay in rsim mode.
+ *
+ * Side effects:
+ *	The command runs in IRSIM; its reply is printed.
+ *-----------------------------------------------------------------------
+ */
+
+bool
+SimWebRsimLine(
+    const char *line)
+{
+    char *replyLine;
+
+    if (!SimRsimRunning)
+	return FALSE;
+    if (!strcmp(line, "."))
+	return FALSE;
+    if (!strcmp(line, "q"))
+    {
+	SimStopRsim();
+	return FALSE;
+    }
+    snprintf(keyBoardBuf, BUF_SIZE - 1, "%s\n", line);
+    if (simWrite(pipeOut, keyBoardBuf, strlen(keyBoardBuf)) < 0)
+    {
+	SimStopRsim();
+	return FALSE;
+    }
+    if (!SimGetReplyLine(&replyLine))
+	return SimRsimRunning;
+    while (replyLine != NULL)
+    {
+	TxPrintf("%s\n", replyLine);
+	if (!SimGetReplyLine(&replyLine))
+	    break;
+    }
+    return SimRsimRunning;
+}
+#endif
 
 
 /*
@@ -424,7 +535,7 @@ InitRsim(
 
     } while( prompt_len == 0 );
 
-    if( write( pipeOut, "has_coords\n", 11 ) < 0 )
+    if( simWrite( pipeOut, "has_coords\n", 11 ) < 0 )
     {
 	TxPrintf(E_PIPEWR);
 	SimStopRsim();
@@ -467,6 +578,14 @@ SimStopRsim(void)
 {
     pid_t pid;
 
+#ifdef MAGIC_WEB
+    if (SimRsimRunning) {
+	webRsimStop();
+	RsimJustStarted = TRUE;
+	SimRsimRunning = FALSE;
+    }
+    return;
+#endif
     if (SimRsimRunning) {
 
 	/* closing the pipes to Rsim have the effect of killing it */
@@ -585,7 +704,7 @@ SimRsimIt(
 
     /* send the command to Rsim */
 
-    if (write(pipeOut, cmdStr, strlen(cmdStr)) < 0) {
+    if (simWrite(pipeOut, cmdStr, strlen(cmdStr)) < 0) {
 	TxPrintf(E_PIPEWR);
 	SimStopRsim();
     }
@@ -632,6 +751,20 @@ SimFillBuffer(
     fd_set readfds, writefds, exceptfds;
 
     struct timeval timeout;
+
+#ifdef MAGIC_WEB
+    temp = *pLastChar;
+    charsRead = webRsimRead(temp, (READBUF_SIZE - 1 - *charCount));
+    if (charsRead > 0) {
+	temp += charsRead;
+	if (*charCount == 0) {
+	    temp--;
+	}
+	*pLastChar = temp;
+	*charCount += charsRead;
+    }
+    return(charsRead);
+#endif
 
     /* Set the timeout to 5 seconds so we don't block indefinitely if	*/
     /* something goes wrong with the pipe.				*/

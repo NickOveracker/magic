@@ -8,6 +8,7 @@ import {Gui} from "./wrapper.js";
 import {menuBar, closeMenus} from "./menu.js";
 import {setHomeFocus} from "./dialog.js";
 import {diskSupported, DiskStore, BrowserStore, recentProjects, reopen, forget} from "./storage.js";
+import {Simulation} from "./simulation.js";
 
 const $ = selector => document.querySelector(selector);
 const desktop = $("#desktop");
@@ -99,7 +100,8 @@ function readyText() {
     }
     const where = project.store ? (project.syncError ? ` · not saved to ${project.store.label}!` :
         ` · kept in ${project.store.label}`) : " · in memory only";
-    return `${project.name}: ${project.top}${where}`;
+    const sim = typeof simulation !== "undefined" && simulation.running ? (simulation.rsimMode ? " · IRSIM prompt" : " · IRSIM running") : "";
+    return `${project.name}: ${project.top}${where}${sim}`;
 }
 
 function guard(fn) {
@@ -119,7 +121,27 @@ function fatal(error) {
 }
 
 // Run a command line in window wid (-1: the topmost layout window), as if typed after ":".
+// The simulation commands (irsim, watchnode…, and loading IRSIM for rsim) are the page's.
 function runIn(wid, command, quiet) {
+    // Magic's quit would end the program, and with it the page.
+    if(/^\s*(quit|exit)\b/.test(command)) {
+        print(": " + command, "command");
+        print("Magic keeps running in the browser; to start again, load a project or reload the page.", "info");
+        return 0;
+    }
+    const handled = magic && simulation.frontEnd(wid, command);
+    if(handled) {
+        if(!quiet) {
+            print(": " + command, "command");
+        }
+        handled.catch(error => print(String(error.message || error), "error")).finally(() => gui.scheduleUpdate());
+        return 0;
+    }
+    return magicRun(wid, command, quiet);
+}
+
+// Run a command line in Magic itself.
+function magicRun(wid, command, quiet) {
     if(!magic) {
         return -1;
     }
@@ -249,6 +271,7 @@ async function loadProject(name, files, store = null) {
     if(project && !unloadAll()) {
         return false;
     }
+    simulation.projectChanged();
     const root = `/work/${++projectCount}-${name}`;
     for(const file of files) {
         mkdirs(root + "/" + file.path);
@@ -610,6 +633,38 @@ const appForGui = {
 
 const gui = new Gui(appForGui);
 
+const simulation = new Simulation({
+    get magic() {
+        return magic;
+    },
+    print,
+    run: magicRun,
+    capture: captureIn,
+    projectRoot: () => (project ? project.root : magic.FS.cwd()),
+    desktop,
+    saveBlob,
+    projectName: () => (project ? project.name : "magic"),
+    windowCell: () => {
+        const status = query("magic_web_status", [activeWindow]);
+        const m = /^caption\t(\S+)/m.exec(status);
+        return m ? m[1] : null;
+    },
+    boxCenter: () => {
+        const m = /^boxi\t(\S+) (\S+) (\S+) (\S+)/m.exec(query("magic_web_status", [activeWindow]));
+        return m ? [Math.round((+m[1] + +m[3]) / 2), Math.round((+m[2] + +m[4]) / 2)] : [0, 0];
+    },
+    setMode: on => {
+        $(".command-row label").textContent = on ? "irsim>" : ":";
+        commandInput.placeholder = on ? "IRSIM command (h A, s, ana A Y, d A) · . back to Magic · q quits IRSIM" :
+            "Magic command, e.g. drc count, extract all, paint m1, irsim";
+        if(on) {
+            openCommandLine();
+        }
+        setStatus(readyText());
+    },
+});
+appForGui.simulation = simulation;
+
 async function loadDemo(name) {
     setStatus(`Loading ${name}…`);
     const response = await fetch(`demo/${name}.mag`);
@@ -639,6 +694,12 @@ commandInput.addEventListener("keydown", event => {
         if(command) {
             history.push(command);
             historyIndex = history.length;
+            if(simulation.rsimMode) {
+                print("irsim> " + command, "command");
+                simulation.line(command)?.catch(error => print(String(error.message || error), "error"));
+                gui.scheduleUpdate();
+                return;
+            }
             run(command);
         }
         refocusCanvas();
@@ -809,6 +870,7 @@ async function start() {
     const [module, magicrc] = await Promise.all([
         createMagic({
             magicWeb: driver,
+            magicRsim: simulation.bridge,
             noInitialRun: true,
             print: line => print(line),
             printErr: line => print(line, "error"),
@@ -834,7 +896,7 @@ async function start() {
 start().catch(fatal);
 
 // For tests and the console.
-window.magicApp = {run, runIn, runCapture, query, loadProject, gui, openStore, keepProject, syncProject,
+window.magicApp = {run, runIn, runCapture, query, loadProject, gui, simulation, openStore, keepProject, syncProject,
     BrowserStore, recentProjects, get module() {
     return magic;
 }, driver, get project() {

@@ -82,7 +82,7 @@ GR_SRCS += grWeb.c
 DFLAGS  += -DMAGIC_WEB
 DFLAGS_NOSTUB += -DMAGIC_WEB
 TOP_EXTRA_LIBS += \
-    -sEXPORTED_FUNCTIONS=_magic_wasm_init,_magic_wasm_run_command,_magic_wasm_source_file,_magic_wasm_update,_magic_web_init,_magic_web_button,_magic_web_key,_magic_web_pump,_magic_web_command,_magic_web_drc_step,_magic_web_configure,_magic_web_screen,_magic_web_redraw,_magic_web_drc_busy,_magic_web_layers,_magic_web_layer_icon,_magic_web_status,_magic_web_cursor,_magic_web_hierarchy,_magic_web_tech,_magic_web_drc_list,_malloc,_free \
+    -sEXPORTED_FUNCTIONS=_magic_wasm_init,_magic_wasm_run_command,_magic_wasm_source_file,_magic_wasm_update,_magic_web_init,_magic_web_button,_magic_web_key,_magic_web_pump,_magic_web_command,_magic_web_drc_step,_magic_web_configure,_magic_web_screen,_magic_web_redraw,_magic_web_drc_busy,_magic_web_layers,_magic_web_layer_icon,_magic_web_status,_magic_web_cursor,_magic_web_hierarchy,_magic_web_tech,_magic_web_drc_list,_magic_web_rsim_line,_malloc,_free \
     -sEXPORTED_RUNTIME_METHODS=cwrap,ccall,FS,setValue,getValue,UTF8ToString,stringToUTF8,HEAP32,HEAPU8 \
     --embed-file ${MAGICSRC}/graphics/color.glyphs@/magic/sys/color.glyphs \
     --embed-file ${MAGICSRC}/graphics/FreeSans.pt3@/magic/sys/FreeSans.pt3 \
