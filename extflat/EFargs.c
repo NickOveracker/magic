@@ -304,14 +304,9 @@ EFArgs(argc, argv, err_result, argsProc, cdata)
     if (EFArgTech) (void) sprintf(EFLibPath, EXT_PATH, EFArgTech);
 
     if (inname == NULL)
-#ifdef MAGIC_WRAPPER
+#if defined(MAGIC_WRAPPER) || defined(EMSCRIPTEN)
+	/* No cell named: the caller uses the cell in the window */
 	return NULL;
-#elif defined(EMSCRIPTEN)
-    {
-	/* Headless WASM: signal error via err_result, no goto usage path */
-	if (err_result != NULL) *err_result = TRUE;
-	return NULL;
-    }
 #else
 	goto usage;
 #endif

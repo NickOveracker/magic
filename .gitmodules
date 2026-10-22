@@ -1,0 +1,4 @@
+[submodule "irsim"]
+	path = irsim
+	url = https://github.com/NickOveracker/irsim.git
+	branch = wasm
