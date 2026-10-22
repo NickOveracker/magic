@@ -151,6 +151,7 @@ typedef void (*cb_database_buttonhandler_t)(MagWindow *w, TxCommand *cmd);
 extern void DBWAddButtonHandler(const char *name, const cb_database_buttonhandler_t proc,
                                 int cursor, const char *doc);
 extern char *DBWGetButtonHandler();
+extern char *DBWGetDefaultButtonHandler();
 extern char *DBWChangeButtonHandler();
 extern int  DBWButtonHandlerIndex();
 extern void DBWPrintButtonDoc();

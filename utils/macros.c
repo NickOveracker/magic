@@ -315,15 +315,31 @@ MacroDefineHelp(client, xc, help)
  *---------------------------------------------------------
  */
 
+/* Look up a macro in the table of the client (or tool) named clientName. */
+static macrodef *
+macroLookup(clientName, xc)
+    char *clientName;
+    int xc;
+{
+    HashEntry *h;
+    HashTable *clienttable;
+
+    if (clientName == NULL) return NULL;
+    h = HashLookOnly(&MacroClients, (char *)clientName);
+    if (h == NULL) return NULL;
+    clienttable = (HashTable *)HashGetValue(h);
+    if (clienttable == NULL) return NULL;
+    h = HashLookOnly(clienttable, (char *)INT2CD(xc));
+    return (h == NULL) ? NULL : (macrodef *)HashGetValue(h);
+}
+
 char *
 MacroRetrieve(client, xc, iReturn)
     WindClient client;		/* window client type */
     int xc;			/* the extended name of the macro */
     bool *iReturn;		/* TRUE if macro is interactive */
 {
-    HashEntry *h;
-    HashTable *clienttable;
-    macrodef *cMacro;
+    macrodef *cMacro = NULL;
     char *clientName = NULL;
 
     if (client == DBWclientID)
@@ -333,25 +349,23 @@ MacroRetrieve(client, xc, iReturn)
     if (clientName == NULL)
 	return NULL;
 
-    /* If a macro exists, delete the old string and redefine it */
-    h = HashLookOnly(&MacroClients, (char *)clientName);
-    if (h != NULL)
+    cMacro = macroLookup(clientName, xc);
+
+#ifndef MAGIC_WRAPPER
+    /* Each tool ("box", "wiring", ...) has its own macro table, and the
+     * startup macros go into the box tool's.  The Tcl version copies them
+     * into the other tools' tables; without Tcl those start empty, so fall
+     * back to the box tool's macros for keys a tool doesn't bind itself.
+     */
+    if (cMacro == NULL && client == DBWclientID)
+	cMacro = macroLookup(DBWGetDefaultButtonHandler(), xc);
+#endif
+
+    if (cMacro != NULL)
     {
-	clienttable = (HashTable *)HashGetValue(h);
-	if (clienttable != NULL)
-	{
-	    h = HashLookOnly(clienttable, (char *)INT2CD(xc));
-	    if (h != NULL)
-	    {
-		cMacro = (macrodef *)HashGetValue(h);
-		if (cMacro != NULL)
-		{
-		    if (iReturn != NULL)
-			*iReturn = cMacro->interactive;
-		    return StrDup((char **)NULL, cMacro->macrotext);
-		}
-	    }
-	}
+	if (iReturn != NULL)
+	    *iReturn = cMacro->interactive;
+	return StrDup((char **)NULL, cMacro->macrotext);
     }
     if (iReturn != NULL) *iReturn = FALSE;
     return (char *)NULL;

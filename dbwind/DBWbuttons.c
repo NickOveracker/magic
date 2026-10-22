@@ -279,6 +279,29 @@ DBWGetButtonHandler()
 /*
  * ----------------------------------------------------------------------------
  *
+ * DBWGetDefaultButtonHandler --
+ *
+ *	Return the name of the first button handler (the box tool), whose
+ *	macro table holds the macros defined at startup.
+ *
+ * Results:
+ *	A pointer to the name, or NULL if no handler is registered.
+ *
+ * Side effects:
+ *	None.
+ *
+ * ----------------------------------------------------------------------------
+ */
+
+char *
+DBWGetDefaultButtonHandler()
+{
+    return dbwButtonHandlers[0];
+}
+
+/*
+ * ----------------------------------------------------------------------------
+ *
  * DBWButtonHandlerIndex()
  *
  *	Given a string, return the index of the button handler.  If the
