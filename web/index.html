@@ -32,7 +32,7 @@ button, select { font: inherit; color: inherit; background: var(--head); border:
   border-radius: 6px; padding: 3px 10px; cursor: pointer; min-height: 28px; }
 button:hover, select:hover { border-color: var(--accent); }
 button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-#demo { max-width: 15em; }
+#top-menus .mb-button { font-size: 14px; min-height: 28px; padding: 3px 10px; border-color: var(--rule); background: var(--head); }
 #status { margin-left: auto; color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden;
   text-overflow: ellipsis; max-width: 40vw; }
 
@@ -76,10 +76,7 @@ body.dragging #desktop::after { content: "Drop files, a folder, or a .zip / .tar
 <body>
 <header class="toolbar">
   <h1>Magic <small>VLSI layout · WebAssembly</small></h1>
-  <button type="button" id="open-files" title="Open .mag, .gds or .tech files, or one .zip / .tar.gz archive">Open files…</button>
-  <button type="button" id="open-folder" title="Open a project folder">Open folder…</button>
-  <select id="demo" aria-label="Open a demo"><option value="">Demos…</option></select>
-  <button type="button" id="download" title="Write all cells and download the project as .tar.gz">Download</button>
+  <div id="top-menus"></div>
   <button type="button" id="help-toggle" aria-expanded="false" aria-controls="help">Help</button>
   <span id="status" role="status">Loading…</span>
   <input type="file" id="pick-files" multiple hidden accept=".mag,.gds,.gds2,.tech,.zip,.tar,.tgz,.gz,.ext,.sim,.spice,.cif,.lef,.def">
@@ -117,10 +114,13 @@ body.dragging #desktop::after { content: "Drop files, a folder, or a .zip / .tar
     <dt>p e s S l u</dt><dd>With the pointer on a layer: paint, erase, select more, select less, lock, unlock</dd>
   </dl>
   <h2>Projects</h2>
-  <p>Open .mag files, a folder, or one .zip, .tar or .tar.gz archive, or drop them on the page. The cell that no
-    other cell uses is opened. A .tech file in the project is loaded first; otherwise the technology the cell
-    names (scmos is built in). <b>Download</b> writes every changed cell and saves the project as .tar.gz.</p>
-  <p>Files live in the browser's memory only, until you download them.</p>
+  <p>Project > Open files or Open folder copies .mag files, a folder, or one .zip, .tar or .tar.gz archive into
+    the page; you can also drop them on it. The cell that no other cell uses is opened. A .tech file in the
+    project is loaded first; otherwise the technology the cell names (scmos is built in).</p>
+  <p>To keep your work, either <b>work in a folder on disk</b> (Chrome, Edge and other Chromium browsers: every
+    file Magic writes, for example with File > Save All or the w key, goes straight into that folder) or
+    <b>keep the project in browser storage</b> (any browser; private to this site). Both appear under
+    Project > Recent next time. Otherwise files live in memory until you download them as .tar.gz.</p>
 </aside>
 
 <section id="console" aria-label="Magic console">

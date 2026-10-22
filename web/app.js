@@ -5,6 +5,9 @@ import createMagic from "./magic.js";
 import {CanvasDriver} from "./canvas-driver.js";
 import {readArchive, isArchive, stripCommonFolder, cleanPath, writeTarGz} from "./archive.js";
 import {Gui} from "./wrapper.js";
+import {menuBar} from "./menu.js";
+import {setHomeFocus} from "./dialog.js";
+import {diskSupported, DiskStore, BrowserStore, recentProjects, reopen, forget} from "./storage.js";
 
 const $ = selector => document.querySelector(selector);
 const desktop = $("#desktop");
@@ -70,6 +73,7 @@ function schedulePump() {
         guard(() => magic._magic_web_pump());
         scheduleDrc();
         gui.scheduleUpdate();
+        scheduleSync();
     });
 }
 
@@ -90,7 +94,12 @@ function scheduleDrc() {
 }
 
 function readyText() {
-    return project ? `${project.name}: ${project.top}` : "Ready";
+    if(!project) {
+        return "Ready";
+    }
+    const where = project.store ? (project.syncError ? ` · not saved to ${project.store.label}!` :
+        ` · kept in ${project.store.label}`) : " · in memory only";
+    return `${project.name}: ${project.top}${where}`;
 }
 
 function guard(fn) {
@@ -120,6 +129,7 @@ function runIn(wid, command, quiet) {
     const result = guard(() => magic.ccall("magic_web_command", "number", ["number", "string"], [wid, command]));
     scheduleDrc();
     gui.scheduleUpdate();
+    scheduleSync();
     return result;
 }
 
@@ -229,15 +239,15 @@ function unloadAll() {
     return true;
 }
 
-async function loadProject(name, files) {
-    files = stripCommonFolder(files.filter(f => f.path));
-    if(!files.length) {
+async function loadProject(name, files, store = null) {
+    files = store ? files.filter(f => f.path) : stripCommonFolder(files.filter(f => f.path));
+    if(!files.length && !store) {
         print("No files to load.", "error");
-        return;
+        return false;
     }
     name = name.replace(/\.(zip|tar|tgz|tar\.gz|mag)$/i, "").replace(/[^\w.-]+/g, "_") || "project";
     if(project && !unloadAll()) {
-        return;
+        return false;
     }
     const root = `/work/${++projectCount}-${name}`;
     for(const file of files) {
@@ -262,6 +272,9 @@ async function loadProject(name, files) {
     }
 
     const gds = files.find(f => /\.(gds|gds2|gdsii|strm)$/i.test(f.path));
+    if(!top && !gds && store) {
+        run("load", true);
+    }
     if(top) {
         run(`load ${top}`);
         project = {name, root, top};
@@ -274,14 +287,18 @@ async function loadProject(name, files) {
         }
         project = {name, root, top: cell || gds.path};
     } else {
-        print("No .mag or .gds file found in the project.", "error");
+        print(store ? "The folder has no .mag or .gds files yet; Magic's saves will go into it." :
+            "No .mag or .gds file found in the project.", store ? "info" : "error");
         project = {name, root, top: "(nothing loaded)"};
     }
+    project.store = store;
+    project.synced = fileTimes(root);
     run("select top cell", true);
     run("view", true);
     run("select clear", true);
     updateTitle();
     setStatus(readyText());
+    return true;
 }
 
 function updateTitle() {
@@ -403,6 +420,153 @@ async function addToProject(files) {
     return added;
 }
 
+// ----- Keeping projects (storage.js)
+
+// Modification times of the files under root: path -> ms.
+function fileTimes(root, prefix = "", times = new Map()) {
+    for(const name of magic.FS.readdir(root)) {
+        if(name === "." || name === "..") {
+            continue;
+        }
+        const path = root + "/" + name, stat = magic.FS.stat(path);
+        if(magic.FS.isDir(stat.mode)) {
+            fileTimes(path, prefix + name + "/", times);
+        } else {
+            times.set(prefix + name, stat.mtime.getTime());
+        }
+    }
+    return times;
+}
+
+let syncTimer = null, syncing = false, syncAgain = false;
+
+// Copy the files Magic wrote (save, writeall, extract, gds write...) into the project's store.
+function scheduleSync() {
+    if(!project || !project.store || syncTimer) {
+        return;
+    }
+    syncTimer = setTimeout(() => {
+        syncTimer = null;
+        syncProject();
+    }, 300);
+}
+
+async function syncProject() {
+    if(!project || !project.store) {
+        return;
+    }
+    if(syncing) {
+        syncAgain = true;
+        return;
+    }
+    syncing = true;
+    const current = project;
+    try {
+        const times = fileTimes(current.root);
+        const written = [];
+        for(const [path, time] of times) {
+            if(current.synced.get(path) !== time) {
+                await current.store.write(path, magic.FS.readFile(current.root + "/" + path));
+                current.synced.set(path, time);
+                written.push(path);
+            }
+        }
+        current.syncError = null;
+        if(written.length) {
+            print(`Saved ${written.join(", ")} to ${current.store.label}`, "info");
+        }
+    } catch(error) {
+        current.syncError = error;
+        print(`Couldn't save to ${current.store.label}: ${error.message || error}`, "error");
+    } finally {
+        syncing = false;
+        if(current === project) {
+            setStatus(readyText());
+        }
+        if(syncAgain) {
+            syncAgain = false;
+            syncProject();
+        }
+    }
+}
+
+let recent = [];
+
+async function refreshRecent() {
+    recent = await recentProjects();
+}
+
+async function openStore(store) {
+    setStatus(`Reading ${store.label}…`);
+    const files = await store.readAll();
+    if(await loadProject(store.name, files, store)) {
+        print(`Working in ${store.label}: Magic's saves go there.`, "info");
+    }
+    refreshRecent();
+}
+
+// Give the current (in-memory) project a store, writing all its files into it.
+async function keepProject(store) {
+    if(!project) {
+        return;
+    }
+    run("writeall force", true);
+    project.store = store;
+    project.synced = new Map();
+    await syncProject();
+    refreshRecent();
+}
+
+async function attempt(work) {
+    try {
+        await work();
+    } catch(error) {
+        if(error && error.name === "AbortError") {
+            return;                  // The user cancelled a picker
+        }
+        print(String(error.message || error), "error");
+        setStatus(readyText());
+    }
+}
+
+const NEEDS_CHROMIUM = "Needs Chrome, Edge or another Chromium browser (the File System Access API)";
+
+function projectMenu() {
+    const items = [
+        {label: "Open files…", action: () => $("#pick-files").click()},
+        {label: "Open folder (copy)…", action: () => $("#pick-folder").click()},
+        "-",
+        {label: "Work in a folder on disk…", disabled: !diskSupported, title: diskSupported ?
+            "Open a folder; files Magic writes are saved into it" : NEEDS_CHROMIUM,
+        action: () => attempt(async () => openStore(await DiskStore.pick()))},
+        {label: "Save project to a folder on disk…", disabled: !diskSupported || !project, title: diskSupported ?
+            "Copy this project into a folder and keep working there" : NEEDS_CHROMIUM,
+        action: () => attempt(async () => keepProject(await DiskStore.pick()))},
+        {label: "Keep project in browser storage", disabled: !project || project.store instanceof BrowserStore,
+            title: "Saves into this browser (private to this site) and keeps it there",
+            action: () => attempt(async () => keepProject(await BrowserStore.create(project.name)))},
+    ];
+    if(recent.length) {
+        items.push("-");
+        for(const entry of recent.slice(0, 8)) {
+            items.push({label: `Reopen ${entry.name} (${entry.kind === "disk" ? "folder" : "browser storage"})`,
+                action: () => attempt(async () => openStore(await reopen(entry)))});
+        }
+        items.push({label: "Forget recent projects…", action: () => attempt(async () => {
+            const stored = recent.filter(e => e.kind === "browser").map(e => e.name);
+            const warning = stored.length ? ` This deletes ${stored.join(", ")} from browser storage.` : "";
+            if(window.confirm(`Forget the recent projects?${warning} Folders on disk are not touched.`)) {
+                for(const entry of recent) {
+                    await forget(entry.id);
+                }
+                await refreshRecent();
+            }
+        })});
+    }
+    items.push("-", {label: "Download project (.tar.gz)", disabled: !project, action: () => download()});
+    return items;
+}
+
 const appForGui = {
     get driver() {
         return driver;
@@ -491,16 +655,21 @@ commandInput.addEventListener("keydown", event => {
     }
 });
 
+// Give the keyboard to the active layout window, or another visible one.  If none can take it,
+// at least take it away from the control that has it, so Magic's keys don't press that again.
 function refocusCanvas() {
-    const canvas = desktop.querySelector(".magic-canvas");
-    const win = driver.windows.get(activeWindow) || driver.windows.values().next().value;
-    (win ? win.canvas : canvas)?.focus({preventScroll: true});
+    const visible = w => w && !w.fw.geometry.collapsed;
+    const win = [driver.windows.get(activeWindow), ...driver.windows.values()].find(visible);
+    if(win) {
+        win.canvas.focus({preventScroll: true});
+    }
+    if(!win || document.activeElement !== win.canvas) {
+        document.activeElement?.blur?.();
+    }
 }
 
 // ----- Page controls
 
-$("#open-files").addEventListener("click", () => $("#pick-files").click());
-$("#open-folder").addEventListener("click", () => $("#pick-folder").click());
 $("#pick-files").addEventListener("change", event => {
     openFiles(event.target.files);
     event.target.value = "";
@@ -510,16 +679,50 @@ $("#pick-folder").addEventListener("change", event => {
     openFiles(event.target.files, first ? first.webkitRelativePath.split("/")[0] : null);
     event.target.value = "";
 });
-$("#download").addEventListener("click", () => download());
+const demoMenu = Object.entries(DEMOS).map(([name, label]) => ({label, action: () =>
+    loadDemo(name).catch(error => print(String(error.message || error), "error"))}));
+$("#top-menus").appendChild(menuBar([["Project", projectMenu], ["Demos", demoMenu]], "Page menu",
+    {onDone: () => refocusCanvas()}));
 
-const demoSelect = $("#demo");
-for(const [name, label] of Object.entries(DEMOS)) {
-    demoSelect.add(new Option(label, name));
-}
-demoSelect.addEventListener("change", () => {
-    if(demoSelect.value) {
-        loadDemo(demoSelect.value).catch(error => print(String(error.message || error), "error"));
-        demoSelect.value = "";
+// Buttons, check boxes and drop-downs used with the mouse give the keyboard back to the layout
+// window afterwards, so that Magic's keys (space, letters) don't press them again.  Used with
+// the keyboard, they keep focus.
+document.addEventListener("click", event => {
+    const control = event.target.closest("button, input[type=checkbox], label");
+    if(event.detail === 0 || !control || control.closest("dialog, .mb-menu, .mb-bar, #help, .command-row")) {
+        return;
+    }
+    setTimeout(() => {
+        const active = document.activeElement;
+        if(active === document.body || active === control || control.contains(active)) {
+            refocusCanvas();
+        }
+    }, 0);
+});
+let selectByPointer = false;
+document.addEventListener("pointerdown", event => {
+    selectByPointer = Boolean(event.target.closest("select"));
+}, true);
+document.addEventListener("keydown", event => {
+    if(event.target.matches?.("select")) {
+        selectByPointer = false;
+    }
+}, true);
+document.addEventListener("change", event => {
+    if(event.target.matches("select") && selectByPointer && !event.target.closest("dialog")) {
+        setTimeout(refocusCanvas, 0);
+    }
+});
+setHomeFocus(() => refocusCanvas());
+// With nothing focused, keys go to the active layout window, as Magic's go to the window under the pointer.
+document.addEventListener("keydown", event => {
+    if(event.target !== document.body || event.defaultPrevented || event.key === "Escape" ||
+        document.querySelector("dialog[open]")) {
+        return;
+    }
+    const win = [driver.windows.get(activeWindow), ...driver.windows.values()].find(w => w && w.client === "layout");
+    if(win) {
+        driver.keyDown(win, event);
     }
 });
 
@@ -603,6 +806,7 @@ async function start() {
     if(magic.ccall("magic_web_init", "number", ["string"], ["scmos"]) !== 0) {
         throw new Error("Magic failed to start");
     }
+    refreshRecent();
     const demo = new URLSearchParams(location.search).get("demo") || DEFAULT_DEMO;
     await loadDemo(DEMOS[demo] ? demo : DEFAULT_DEMO);
     gui.scheduleUpdate();
@@ -612,7 +816,8 @@ async function start() {
 start().catch(fatal);
 
 // For tests and the console.
-window.magicApp = {run, runIn, runCapture, query, loadProject, gui, get module() {
+window.magicApp = {run, runIn, runCapture, query, loadProject, gui, openStore, keepProject, syncProject,
+    BrowserStore, recentProjects, get module() {
     return magic;
 }, driver, get project() {
     return project;

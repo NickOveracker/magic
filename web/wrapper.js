@@ -208,7 +208,8 @@ class LayoutFrame {
         this.view = root.querySelector(".mw-view");
         const titlebar = root.querySelector(".mw-titlebar");
 
-        titlebar.appendChild(menuBar(this.menus(), "Magic window menu"));
+        titlebar.appendChild(menuBar(this.menus(), "Magic window menu",
+            {onDone: () => this.win.canvas.focus({preventScroll: true})}));
         const drc = document.createElement("label");
         drc.className = "mw-drc";
         drc.title = "Background design rule checking";
@@ -726,7 +727,13 @@ class Toolbar {
             const layer = this.layerAt(event);
             frame.setMessage(layer ? layer.name + (layer.locked ? " (locked)" : "") : "");
         });
-        el.addEventListener("pointerleave", () => frame.setMessage(""));
+        el.addEventListener("pointerleave", () => {
+            frame.setMessage("");
+            // Focus followed the pointer into the toolbar; give the keys back to the layout.
+            if(el.contains(document.activeElement)) {
+                frame.win.canvas.focus({preventScroll: true});
+            }
+        });
         el.addEventListener("keydown", event => {
             const layer = this.layerAt(event);
             if(!layer) {

@@ -447,18 +447,21 @@ export class CanvasDriver {
             }
         }, {passive: false});
 
-        canvas.addEventListener("keydown", event => {
-            const code = this.keyCode(event);
-            if(code === null) {
-                return;
-            }
-            event.preventDefault();
-            if(code === ":".charCodeAt(0) || code === ";".charCodeAt(0)) {
-                this.onCommand(wid, null);     // Open the command line
-                return;
-            }
-            this.key(win, code);
-        });
+        canvas.addEventListener("keydown", event => this.keyDown(win, event));
+    }
+
+    // A key for window win (its canvas has focus, or nothing else does).
+    keyDown(win, event) {
+        const code = this.keyCode(event);
+        if(code === null || !this.module) {
+            return;
+        }
+        event.preventDefault();
+        if(code === ":".charCodeAt(0) || code === ";".charCodeAt(0)) {
+            this.onCommand(win.wid, null);     // Open the command line
+            return;
+        }
+        this.key(win, code);
     }
 
     key(win, code) {

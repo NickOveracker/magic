@@ -17,6 +17,12 @@ const STYLES = `
 `;
 
 let counter = 0;
+let homeFocus = null;
+
+// Where focus goes when a dialog closes and whatever had focus before is gone.
+export function setHomeFocus(fn) {
+    homeFocus = fn;
+}
 
 export function ask({title, message, fields = [], ok = "OK"}) {
     if(!document.getElementById("dlg-styles")) {
@@ -77,6 +83,7 @@ export function ask({title, message, fields = [], ok = "OK"}) {
     form.appendChild(buttons);
     dialog.appendChild(form);
     document.body.appendChild(dialog);
+    const previous = document.activeElement;
 
     return new Promise(resolve => {
         buttons.firstChild.addEventListener("click", () => dialog.close("cancel"));
@@ -86,6 +93,11 @@ export function ask({title, message, fields = [], ok = "OK"}) {
                 values[name] = input.value.trim();
             }
             dialog.remove();
+            if(previous && previous.isConnected && previous !== document.body) {
+                previous.focus({preventScroll: true});
+            } else if(homeFocus) {
+                homeFocus();
+            }
             resolve(dialog.returnValue === "ok" ? values : null);
         });
         form.addEventListener("submit", event => {

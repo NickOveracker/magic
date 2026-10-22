@@ -54,15 +54,22 @@ document.addEventListener("pointerdown", event => {
 window.addEventListener("blur", closeMenus);
 document.addEventListener("keydown", event => {
     if(event.key === "Escape" && openMenu) {
-        const button = openMenu.button;
+        const {button, done} = openMenu;
         closeMenus();
-        button.focus({preventScroll: true});
+        if(done) {
+            done();
+        } else {
+            button.focus({preventScroll: true});
+        }
     }
 });
 window.addEventListener("resize", closeMenus);
 
 // A menu bar: menus is [[title, items], ...].  Returns the bar element.
-export function menuBar(menus, label) {
+// After a choice made with the mouse, options.onDone() runs instead of focus
+// going back to the menu button, so that (for example) the layout window gets
+// the keyboard again; a choice made with the keyboard keeps focus on the button.
+export function menuBar(menus, label, options = {}) {
     addStyles();
     const bar = document.createElement("div");
     bar.className = "mb-bar";
@@ -75,7 +82,7 @@ export function menuBar(menus, label) {
         button.textContent = title;
         button.setAttribute("aria-haspopup", "menu");
         button.setAttribute("aria-expanded", "false");
-        button.addEventListener("click", () => {
+        button.addEventListener("click", event => {
             if(openMenu && openMenu.button === button) {
                 // A menu that opened as the pointer slid onto it stays open when clicked.
                 if(openMenu.byHover) {
@@ -84,12 +91,12 @@ export function menuBar(menus, label) {
                     closeMenus();
                 }
             } else {
-                open(button, items, false);
+                open(button, items, false, event.detail > 0);
             }
         });
         button.addEventListener("pointerenter", () => {
             if(openMenu && openMenu.button !== button && bar.contains(openMenu.button)) {
-                open(button, items, false);
+                open(button, items, false, true);
                 openMenu.byHover = true;
             }
         });
@@ -109,7 +116,7 @@ export function menuBar(menus, label) {
         open(next.button, next.items, true);
     }
 
-    function open(button, items, focusFirst) {
+    function open(button, items, focusFirst, byPointer) {
         closeMenus();
         const list = document.createElement("ul");
         list.className = "mb-menu";
@@ -139,20 +146,25 @@ export function menuBar(menus, label) {
             if(item.title) {
                 li.title = item.title;
             }
-            const choose = () => {
+            const choose = byKeyboard => {
                 if(item.disabled) {
                     return;
                 }
                 closeMenus();
-                button.focus({preventScroll: true});
+                if(byKeyboard || !options.onDone) {
+                    button.focus({preventScroll: true});
+                }
                 item.action();
+                if(!byKeyboard && options.onDone) {
+                    options.onDone();
+                }
             };
-            li.addEventListener("click", choose);
+            li.addEventListener("click", () => choose(false));
             li.addEventListener("pointermove", () => li.focus({preventScroll: true}));
             li.addEventListener("keydown", event => {
                 if(event.key === "Enter" || event.key === " ") {
                     event.preventDefault();
-                    choose();
+                    choose(true);
                 }
             });
             list.appendChild(li);
@@ -164,10 +176,6 @@ export function menuBar(menus, label) {
                 event.preventDefault();
                 const step = event.key === "ArrowDown" ? 1 : -1;
                 items[(i + step + items.length) % items.length]?.focus();
-            } else if(event.key === "Escape") {
-                event.preventDefault();
-                closeMenus();
-                button.focus();
             } else if(event.key === "ArrowLeft" || event.key === "ArrowRight") {
                 event.preventDefault();
                 neighbour(button, event.key === "ArrowRight" ? 1 : -1);
@@ -181,7 +189,7 @@ export function menuBar(menus, label) {
         list.style.left = Math.max(4, Math.min(r.left, window.innerWidth - width - 4)) + "px";
         list.style.top = (r.bottom + height + 4 <= window.innerHeight ? r.bottom + 2 : Math.max(4, r.top - height - 2)) + "px";
         button.setAttribute("aria-expanded", "true");
-        openMenu = {button, list, byHover: false};
+        openMenu = {button, list, byHover: false, done: byPointer ? options.onDone : null};
         if(focusFirst) {
             list.querySelector(".mb-item")?.focus();
         }
