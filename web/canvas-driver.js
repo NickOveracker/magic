@@ -98,8 +98,11 @@ export class CanvasDriver {
             canvas.style.cursor = this.cursors[this.cursorIndex] || "crosshair";
         }
         new ResizeObserver(() => {
-            if(this.sizeCanvas(win)) {
+            // A collapsed window's body has no size; keep the canvas (and its picture) as it was.
+            if(!fw.geometry.collapsed && this.sizeCanvas(win)) {
                 this.frameChanged(wid);
+                // Resizing a canvas erases it, even when Magic's frame didn't change.
+                this.module?._magic_web_redraw(wid);
             }
         }).observe(fw.body);
         // The desktop may have clamped the window; tell Magic where it ended up.
