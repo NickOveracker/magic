@@ -1,0 +1,3 @@
+# The web build (build.sh) runs out of source here.
+/build-web/
+/build-web-debug/

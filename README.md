@@ -1,40 +1,43 @@
 # Magic in the browser
 
 An interactive build of Magic for the web: Magic compiled to WebAssembly with a
-new graphics driver (`graphics/grWeb.c`) that draws each Magic window on an
+new graphics driver (`src/graphics/grWeb.c`) that draws each Magic window on an
 HTML canvas inside a movable, resizable, collapsible window on the page.
+
+The app is at https://nickoveracker.github.io/magic/ and is what this folder
+holds; Magic's own source, with its original README and native build, is in
+`src/`. The old address, `/web/`, redirects there.
 
 ## Build and run
 
     git submodule update --init irsim          # IRSIM, for the simulator commands
-
-    EMSDK_DIR=/path/to/emsdk web/build.sh     # --debug for a -g build
+    EMSDK_DIR=/path/to/emsdk ./build.sh        # --debug for a -g build
     python3 -m http.server                     # from the repository root
-    # open http://localhost:8000/web/
+    # open http://localhost:8000/
 
-`build.sh` configures a non-Tcl Emscripten build in `build-web/` with
-`MAGIC_WEB=1` (see `toolchains/emscripten/defs.mak`) and copies `magic.js`,
-`magic.wasm` and the startup macros (`magicrc`) into this folder.
+`build.sh` configures a non-Tcl Emscripten build of `src/` in `build-web/`
+with `MAGIC_WEB=1` (see `src/toolchains/emscripten/defs.mak`) and copies
+`magic.js`, `magic.wasm` and the startup macros (`magicrc`) into this folder.
 
 ## How it fits together
 
 | Piece | Role |
 | --- | --- |
-| `graphics/grWeb.c` | The WEB display type (`magic -d WEB`). Follows the X11 driver's one-surface-per-window model and forwards drawing to `Module.magicWeb`. Uses the OpenGL display styles, so layers are translucent as in the Cairo driver. |
-| `magic/magicWeb.c` | Exported entry points: `magic_web_init`, `magic_web_button`, `magic_web_key`, `magic_web_pump`, `magic_web_command`, `magic_web_drc_step`, `magic_web_configure`, ... Nothing blocks; the page owns the event loop. |
-| `textio/txCommands.c` | `TxDispatchPending()`: the non-blocking counterpart of `TxDispatch`. |
-| `drc/DRCcontin.c` | Background DRC yields after each time slice (`MagicWebShouldYield`). |
-| `utils/macros.c` | X11-style extended macros (`XK_Left`, `Control_XK_...`, scroll wheel) without Xlib. |
-| `web/canvas-driver.js` | Canvas drawing, stipples, cursors; mouse, wheel and keys translated to X11 keysyms. |
-| `web/storage.js` | Keeping projects: a real folder (File System Access API) or the browser's IndexedDB, and the recent-projects list. |
-| `web/archive.js` | .zip / .tar / .tar.gz reading and .tar.gz writing with the browser's (De)CompressionStream. |
-| `web/wrapper.js` | The Tcl/Tk wrapper's per-window GUI (`tcltk/wrapper.tcl`, `toolbar.tcl`): File, Edit, Cell, Window, Layers, Drc and Options menus, the DRC switch, caption and coordinates, the layer toolbar and the window command entry. |
-| `web/managers.js` | The cell, library, technology and DRC managers from the Options menu (`cellmgr.tcl`, `libmgr.tcl`, `drcmgr.tcl`). |
-| `web/menu.js`, `web/dialog.js` | Drop-down menus and the prompt dialogs. |
-| `sim/SimRsim.c` | Magic's simulator interface. Under `MAGIC_WEB` the process and its two pipes are replaced by calls to `Module.magicRsim` (start, write, read, stop), and the `rsim` prompt loop by `magic_web_rsim_line`, one line at a time. |
-| `web/rsim.js` | That bridge: runs IRSIM from the `irsim` submodule (`../irsim/web/irsim.js`) as a second WebAssembly module, loaded on first use and dropped on `q`. |
-| `web/simulation.js` | The Tcl integration's `irsim`, `watchnode`, `unwatchnode` and `watchtime`, and the IRSIM app's analyzer and node lists fed from the same simulator. |
-| `web/app.js` | Page logic: console, command line, project loading, download, demos. |
+| `src/graphics/grWeb.c` | The WEB display type (`magic -d WEB`). Follows the X11 driver's one-surface-per-window model and forwards drawing to `Module.magicWeb`. Uses the OpenGL display styles, so layers are translucent as in the Cairo driver. |
+| `src/magic/magicWeb.c` | Exported entry points: `magic_web_init`, `magic_web_button`, `magic_web_key`, `magic_web_pump`, `magic_web_command`, `magic_web_drc_step`, `magic_web_configure`, ... Nothing blocks; the page owns the event loop. |
+| `src/textio/txCommands.c` | `TxDispatchPending()`: the non-blocking counterpart of `TxDispatch`. |
+| `src/drc/DRCcontin.c` | Background DRC yields after each time slice (`MagicWebShouldYield`). |
+| `src/utils/macros.c` | X11-style extended macros (`XK_Left`, `Control_XK_...`, scroll wheel) without Xlib. |
+| `canvas-driver.js` | Canvas drawing, stipples, cursors; mouse, wheel and keys translated to X11 keysyms. |
+| `storage.js` | Keeping projects: a real folder (File System Access API) or the browser's IndexedDB, and the recent-projects list. |
+| `archive.js` | .zip / .tar / .tar.gz reading and .tar.gz writing with the browser's (De)CompressionStream. |
+| `wrapper.js` | The Tcl/Tk wrapper's per-window GUI (`src/tcltk/wrapper.tcl`, `toolbar.tcl`): File, Edit, Cell, Window, Layers, Drc and Options menus, the DRC switch, caption and coordinates, the layer toolbar and the window command entry. |
+| `managers.js` | The cell, library, technology and DRC managers from the Options menu (`cellmgr.tcl`, `libmgr.tcl`, `drcmgr.tcl`). |
+| `menu.js`, `dialog.js` | Drop-down menus and the prompt dialogs. |
+| `src/sim/SimRsim.c` | Magic's simulator interface. Under `MAGIC_WEB` the process and its two pipes are replaced by calls to `Module.magicRsim` (start, write, read, stop), and the `rsim` prompt loop by `magic_web_rsim_line`, one line at a time. |
+| `rsim.js` | That bridge: runs IRSIM from the `irsim` submodule (`irsim/irsim.js`) as a second WebAssembly module, loaded on first use and dropped on `q`. |
+| `simulation.js` | The Tcl integration's `irsim`, `watchnode`, `unwatchnode` and `watchtime`, and the IRSIM app's analyzer and node lists fed from the same simulator. |
+| `app.js` | Page logic: console, command line, project loading, download, demos. |
 
 ## Using it
 
@@ -81,9 +84,9 @@ HTML canvas inside a movable, resizable, collapsible window on the page.
 - The link uses `-sEMULATE_FUNCTION_POINTER_CASTS=1`. Magic calls many
   callbacks through pointers whose declared signatures don't match the
   functions (harmless natively, a trap in WebAssembly). Two such bugs on the
-  drawing path are fixed in the source (`dbwind/DBWhlights.c`, netmenu); the
+  drawing path are fixed in the source (`src/dbwind/DBWhlights.c`, netmenu); the
   flag covers the rest.
-- The magic_web_* queries in `magic/magicWeb.c` (layers, status, cursor,
+- The magic_web_* queries in `src/magic/magicWeb.c` (layers, status, cursor,
   hierarchy, tech, DRC list) replace what the Tcl wrapper reads through Tcl.
 - Not available: the 3D window (needs OpenGL) and anything that runs Tcl.
 - Interactive macros (`imacro`) and commands that ask a question on the
