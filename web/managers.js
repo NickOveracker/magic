@@ -13,6 +13,7 @@ const STYLES = `
 .mg-list { flex: 1; overflow: auto; margin: 0; padding: 4px 0; list-style: none; font-family: var(--mono); font-size: 12px; }
 .mg-list li { padding: 1px 8px; white-space: nowrap; cursor: default; outline: none; }
 .mg-list li[aria-selected="true"] { background: var(--accent); color: #fff; }
+.mg-list li[aria-selected="true"] .mg-dim { color: inherit; opacity: .8; }
 .mg-list li:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); }
 .mg-twisty { display: inline-block; width: 1.2em; text-align: center; cursor: pointer; }
 .mg-dim { color: var(--muted); }
