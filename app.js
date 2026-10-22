@@ -742,8 +742,16 @@ $("#pick-folder").addEventListener("change", event => {
 });
 const demoMenu = Object.entries(DEMOS).map(([name, label]) => ({label, action: () =>
     loadDemo(name).catch(error => print(String(error.message || error), "error"))}));
-$("#top-menus").appendChild(menuBar([["Project", projectMenu], ["Demos", demoMenu]], "Page menu",
-    {onDone: () => refocusCanvas()}));
+const aboutMenu = [
+    {label: "Magic license", href: "https://github.com/NickOveracker/magic/blob/web/LICENSE"},
+    {label: "IRSIM license (GPL 2)", href: "https://github.com/NickOveracker/irsim/blob/wasm/COPYRIGHT"},
+    {label: "Emscripten runtime license (MIT)", href: "https://github.com/emscripten-core/emscripten/blob/main/LICENSE"},
+    "-",
+    {label: "Source code: Magic", href: "https://github.com/NickOveracker/magic/tree/web"},
+    {label: "Source code: IRSIM", href: "https://github.com/NickOveracker/irsim/tree/wasm"},
+];
+$("#top-menus").appendChild(menuBar([["Project", projectMenu], ["Demos", demoMenu], ["About", aboutMenu],
+    ["Ko-fi", "https://ko-fi.com/twentynine"]], "Page menu", {onDone: () => refocusCanvas()}));
 
 // Buttons, check boxes and drop-downs used with the mouse give the keyboard back to the layout
 // window afterwards, so that Magic's keys (space, letters) don't press them again.  Used with

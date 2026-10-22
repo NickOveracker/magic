@@ -4,9 +4,11 @@
 //   {label, action}                  a command
 //   {label, checked: () => bool, action}   a check button
 //   {label, disabled: true, title}   shown greyed out, with a reason
+//   {label, href}                    a link, opened in a new tab
 //   "-"                              a separator
 // Items may also be a function returning such a list, so that a menu can be
 // built afresh every time it opens (for lists of styles, windows and so on).
+// In the bar, a menu whose items are a URL string is a plain link instead.
 //
 // Keyboard: Enter, space or Down opens a menu; arrows move; Left/Right switch
 // to the neighbouring menu; Escape closes.
@@ -16,6 +18,8 @@ const STYLES = `
 .mb-button { font: 12px system-ui, sans-serif; color: inherit; background: none; border: 1px solid transparent;
   border-radius: 4px; padding: 1px 7px; min-height: 22px; cursor: pointer; }
 .mb-button:hover, .mb-button[aria-expanded="true"] { background: var(--head); border-color: var(--rule); }
+a.mb-button { display: inline-flex; align-items: center; text-decoration: none; }
+.mb-out { margin-left: auto; padding-left: 12px; opacity: 0.7; }
 .mb-menu { position: fixed; z-index: 2000000; min-width: 180px; max-height: 80vh; overflow: auto; margin: 0;
   padding: 4px 0; list-style: none; background: var(--panel); color: var(--fg); border: 1px solid var(--rule);
   border-radius: 6px; box-shadow: 0 8px 24px rgba(0,0,0,.25); font: 13px system-ui, sans-serif; }
@@ -80,6 +84,16 @@ export function menuBar(menus, label, options = {}) {
     bar.setAttribute("role", "menubar");
     bar.setAttribute("aria-label", label);
     const buttons = menus.map(([title, items]) => {
+        if(typeof items === "string") {
+            const link = document.createElement("a");
+            link.className = "mb-button";
+            link.href = items;
+            link.target = "_blank";
+            link.rel = "noopener";
+            link.textContent = title;
+            bar.appendChild(link);
+            return null;
+        }
         const button = document.createElement("button");
         button.type = "button";
         button.className = "mb-button";
@@ -119,7 +133,7 @@ export function menuBar(menus, label, options = {}) {
         });
         bar.appendChild(button);
         return {button, items};
-    });
+    }).filter(Boolean);
 
     function neighbour(button, step) {
         const i = buttons.findIndex(b => b.button === button);
@@ -151,6 +165,9 @@ export function menuBar(menus, label, options = {}) {
             li.innerHTML = '<span class="mb-check" aria-hidden="true"></span><span></span>';
             li.firstChild.textContent = checked ? "✓" : "";
             li.lastChild.textContent = item.label;
+            if(item.href) {
+                li.insertAdjacentHTML("beforeend", '<span class="mb-out" aria-hidden="true">↗</span>');
+            }
             if(item.disabled) {
                 li.setAttribute("aria-disabled", "true");
             }
@@ -165,7 +182,11 @@ export function menuBar(menus, label, options = {}) {
                 if(byKeyboard || !options.onDone) {
                     button.focus({preventScroll: true});
                 }
-                item.action();
+                if(item.href) {
+                    window.open(item.href, "_blank", "noopener");
+                } else {
+                    item.action();
+                }
                 if(!byKeyboard && options.onDone) {
                     options.onDone();
                 }
