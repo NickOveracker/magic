@@ -1,10 +1,13 @@
 // Floating windows on a desktop element: drag by the title bar, resize from
-// the right edge, bottom edge or corner, collapse to the title bar, close.
+// any edge or corner, collapse to the title bar, close.
 // Clicking a window brings it to the front.  With the title bar focused,
 // arrow keys move the window and Shift+arrow keys resize it.
 //
 // Geometry is in pixels relative to the desktop.  onChange(geometry) runs
 // after every move or resize, so the owner can follow along.
+//
+// topEdgeResizer() makes a panel docked below the desktop (the console)
+// resizable from its top edge.
 
 const STYLES = `
 .fw-window { position: absolute; display: flex; flex-direction: column; box-sizing: border-box;
@@ -22,10 +25,26 @@ const STYLES = `
 .fw-window.fw-collapsed .fw-body, .fw-window.fw-collapsed .fw-resize { display: none; }
 .fw-window.fw-collapsed .fw-header { border-bottom: 0; }
 .fw-resize { position: absolute; touch-action: none; z-index: 1; }
-.fw-e { top: 0; right: 0; width: 7px; height: 100%; cursor: ew-resize; }
-.fw-s { left: 0; bottom: 0; height: 7px; width: 100%; cursor: ns-resize; }
-.fw-se { right: 0; bottom: 0; width: 14px; height: 14px; cursor: nwse-resize; }
+.fw-n, .fw-s { left: 0; width: 100%; height: 6px; cursor: ns-resize; }
+.fw-e, .fw-w { top: 0; height: 100%; width: 6px; cursor: ew-resize; }
+.fw-n { top: 0; } .fw-s { bottom: 0; } .fw-e { right: 0; } .fw-w { left: 0; }
+.fw-ne, .fw-nw, .fw-se, .fw-sw { width: 12px; height: 12px; }
+.fw-ne { top: 0; right: 0; cursor: nesw-resize; } .fw-sw { bottom: 0; left: 0; cursor: nesw-resize; }
+.fw-nw { top: 0; left: 0; cursor: nwse-resize; } .fw-se { bottom: 0; right: 0; cursor: nwse-resize; }
+.fw-grip { position: absolute; left: 0; right: 0; top: 0; height: 6px; cursor: ns-resize; touch-action: none;
+  z-index: 1; }
+.fw-grip:focus-visible { outline: none; background: var(--accent); }
+.collapsed > .fw-grip { display: none; }
 `;
+
+function addStyles() {
+    if(!document.getElementById("fw-styles")) {
+        const style = document.createElement("style");
+        style.id = "fw-styles";
+        style.textContent = STYLES;
+        document.head.appendChild(style);
+    }
+}
 
 export const HEADER_HEIGHT = 30;
 
@@ -36,12 +55,7 @@ const TOPMOST = 100000;
 
 export class FloatingWindow {
     constructor(desktop, options) {
-        if(!document.getElementById("fw-styles")) {
-            const style = document.createElement("style");
-            style.id = "fw-styles";
-            style.textContent = STYLES;
-            document.head.appendChild(style);
-        }
+        addStyles();
         this.desktop = desktop;
         this.onClose = options.onClose || null;
         this.onChange = options.onChange || null;
@@ -56,8 +70,8 @@ export class FloatingWindow {
             '<button type="button" class="fw-button fw-collapse"></button>' +
             '<button type="button" class="fw-button fw-close" aria-label="Close" title="Close">✕</button></header>' +
             '<div class="fw-body"></div>' +
-            '<div class="fw-resize fw-e" data-edge="e"></div><div class="fw-resize fw-s" data-edge="s"></div>' +
-            '<div class="fw-resize fw-se" data-edge="se"></div>';
+            ["n", "s", "e", "w", "ne", "nw", "se", "sw"].map(edge =>
+                `<div class="fw-resize fw-${edge}" data-edge="${edge}"></div>`).join("");
         this.header = el.querySelector(".fw-header");
         this.body = el.querySelector(".fw-body");
         this.setTitle(options.title || "");
@@ -153,11 +167,23 @@ export class FloatingWindow {
         for(const handle of el.querySelectorAll(".fw-resize")) {
             const edge = handle.dataset.edge;
             this.drag(handle, (start, dx, dy) => {
+                const g = this.geometry;
                 if(edge.includes("e")) {
-                    this.geometry.width = start.width + dx;
+                    g.width = start.width + dx;
                 }
                 if(edge.includes("s")) {
-                    this.geometry.height = start.height + dy;
+                    g.height = start.height + dy;
+                }
+                // The left and top edges move while the opposite edge stays put, down to the
+                // minimum size and, for the top, no higher than the top of the desktop.
+                if(edge.includes("w")) {
+                    g.width = Math.max(this.min.width, start.width - dx);
+                    g.x = start.x + start.width - g.width;
+                }
+                if(edge.includes("n")) {
+                    const bottom = start.y + start.height;
+                    g.y = Math.max(0, Math.min(start.y + dy, bottom - this.min.height));
+                    g.height = bottom - g.y;
                 }
             });
         }
@@ -209,4 +235,52 @@ export class FloatingWindow {
         handle.addEventListener("pointerup", stop);
         handle.addEventListener("pointercancel", stop);
     }
+}
+
+// A panel docked below the desktop, resized by dragging its top edge, or with the edge
+// focused, with the up and down arrow keys.  The panel keeps at least min pixels, and the
+// desktop above it at least minAbove.
+export function topEdgeResizer(panel, desktop, {min = 34, minAbove = 120, label = "Resize"} = {}) {
+    addStyles();
+    if(getComputedStyle(panel).position === "static") {
+        panel.style.position = "relative";
+    }
+    const grip = document.createElement("div");
+    grip.className = "fw-grip";
+    grip.tabIndex = 0;
+    grip.title = label;
+    grip.setAttribute("role", "separator");
+    grip.setAttribute("aria-orientation", "horizontal");
+    grip.setAttribute("aria-label", label);
+    panel.prepend(grip);
+    const setHeight = height => {
+        const max = Math.max(min, panel.offsetHeight + desktop.clientHeight - minAbove);
+        panel.style.height = Math.round(Math.min(Math.max(height, min), max)) + "px";
+    };
+    let start = null;
+    grip.addEventListener("pointerdown", event => {
+        if(event.button === 0) {
+            event.preventDefault();
+            start = {y: event.clientY, height: panel.offsetHeight};
+            grip.setPointerCapture(event.pointerId);
+        }
+    });
+    grip.addEventListener("pointermove", event => {
+        if(start) {
+            setHeight(start.height - (event.clientY - start.y));
+        }
+    });
+    const stop = () => {
+        start = null;
+    };
+    grip.addEventListener("pointerup", stop);
+    grip.addEventListener("pointercancel", stop);
+    grip.addEventListener("keydown", event => {
+        const step = {ArrowUp: 1, ArrowDown: -1}[event.key];
+        if(step) {
+            event.preventDefault();
+            setHeight(panel.offsetHeight + step * (event.altKey ? 1 : 16));
+        }
+    });
+    return grip;
 }

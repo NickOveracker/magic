@@ -9,9 +9,11 @@ import {menuBar, closeMenus} from "./menu.js";
 import {setHomeFocus} from "./dialog.js";
 import {diskSupported, DiskStore, BrowserStore, recentProjects, reopen, forget} from "./storage.js";
 import {Simulation} from "./simulation.js";
+import {topEdgeResizer} from "./floating-window.js";
 
 const $ = selector => document.querySelector(selector);
 const desktop = $("#desktop");
+topEdgeResizer($("#console"), desktop, {label: "Resize the console"});
 const log = $("#log");
 const commandInput = $("#command");
 const status = $("#status");
