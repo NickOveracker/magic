@@ -39,6 +39,10 @@ static char rcsid[] __attribute__ ((unused)) = "$Header: /usr/cvsroot/magic-8.0/
 #include "utils/main.h"
 #include "commands/commands.h"
 #include "drc/drc.h"
+
+#ifdef MAGIC_WEB
+extern bool MagicWebShouldYield(void);
+#endif
 #include "utils/signals.h"
 #include "graphics/graphics.h"
 #include "utils/undo.h"
@@ -535,6 +539,10 @@ DRCContinuous()
 
 	    /* fprintf(stderr, "DRC continuing internally. . .\n"); fflush(stderr); */
 #else
+#ifdef MAGIC_WEB
+	    /* Let the browser run between slices of background checking. */
+	    if (MagicWebShouldYield()) goto checkDone;
+#endif
 #ifndef USE_IO_PROBE
 	    if (SigInterruptPending) goto checkDone;
 #else

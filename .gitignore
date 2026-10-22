@@ -151,3 +151,5 @@ doc/latexfiles/*.log
 
 # Out-of-tree build directory (generated; was accidentally committed in e7fd0e90)
 /build-alt/
+/build-web/
+/build-web-debug/

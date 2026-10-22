@@ -46,7 +46,7 @@ static char rcsid[] __attribute__ ((unused)) = "$Header: /usr/cvsroot/magic-8.0/
  */
 
 #define MAXCLIENTS 10
-static int (*(dbwhlClients[MAXCLIENTS]))();
+static void (*(dbwhlClients[MAXCLIENTS]))();
 
 /*
  * ----------------------------------------------------------------------------
@@ -84,7 +84,7 @@ static int (*(dbwhlClients[MAXCLIENTS]))();
 
 void
 DBWHLAddClient(redisplayProc)
-    int (*redisplayProc)();	/* Procedure to call during redisplays. */
+    void (*redisplayProc)();	/* Procedure to call during redisplays. */
 {
     int i;
     for (i = 0; i < MAXCLIENTS; i++)
@@ -119,7 +119,7 @@ DBWHLAddClient(redisplayProc)
 
 void
 DBWHLRemoveClient(redisplayProc)
-    int (*redisplayProc)();		/* A redisplay procedure.  This
+    void (*redisplayProc)();		/* A redisplay procedure.  This
 					 * procedure must previously have been
 					 * passed in to DBWHLAddClient.
 					 */
@@ -380,7 +380,7 @@ DBWHLRedrawWind(window, clientData)
     for (i = 0; i < MAXCLIENTS; i += 1)
     {
 	if (dbwhlClients[i] == NULL) continue;
-	(void) (*(dbwhlClients[i]))(window, crec->dbw_hlRedraw);
+	(*(dbwhlClients[i]))(window, crec->dbw_hlRedraw);
     }
 
     DBClearPaintPlane(crec->dbw_hlErase);

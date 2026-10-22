@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Magic</title>
+<meta name="description" content="The Magic VLSI layout editor, compiled to WebAssembly and running in the browser.">
+<style>
+:root {
+  color-scheme: light dark;
+  --bg: #e9e8ef; --panel: #ffffff; --head: #f3f1f8; --fg: #1d1d1f; --muted: #5f6368;
+  --rule: #cfcbd9; --accent: #4c26b8; --error: #b3261e; --info: #1e6b3a;
+  --log-bg: #fbfbfd; --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #17181b; --panel: #222327; --head: #2b2c31; --fg: #e8e8ea; --muted: #a0a4a8;
+    --rule: #3c3e44; --accent: #a68cff; --error: #f2948c; --info: #8fd3a4; --log-bg: #1b1c1f;
+  }
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { display: flex; flex-direction: column; background: var(--bg); color: var(--fg);
+  font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; overflow: hidden; }
+
+.toolbar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 6px 10px;
+  background: var(--panel); border-bottom: 1px solid var(--rule); }
+.toolbar h1 { font-size: 15px; margin: 0 8px 0 0; letter-spacing: .02em; }
+.toolbar h1 small { font-weight: 400; color: var(--muted); }
+button, select { font: inherit; color: inherit; background: var(--head); border: 1px solid var(--rule);
+  border-radius: 6px; padding: 3px 10px; cursor: pointer; min-height: 28px; }
+button:hover, select:hover { border-color: var(--accent); }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+#demo { max-width: 15em; }
+#status { margin-left: auto; color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; max-width: 40vw; }
+
+#desktop { position: relative; flex: 1; min-height: 0; overflow: hidden; }
+.magic-canvas { display: block; touch-action: none; outline: none; }
+.fw-window:focus-within { border-color: var(--accent); }
+
+#console { display: flex; flex-direction: column; height: 190px; min-height: 34px; resize: vertical;
+  overflow: hidden; background: var(--log-bg); border-top: 1px solid var(--rule); }
+#console.collapsed { height: auto !important; resize: none; }
+#console.collapsed #log { display: none; }
+#log { flex: 1; overflow: auto; padding: 4px 10px; font: 12px/1.45 var(--mono); white-space: pre-wrap; }
+.log-error { color: var(--error); }
+.log-info { color: var(--info); }
+.log-command { color: var(--accent); }
+.command-row { display: flex; align-items: center; gap: 6px; padding: 4px 10px; border-top: 1px solid var(--rule);
+  background: var(--panel); }
+.command-row label { font: 13px var(--mono); color: var(--muted); }
+#command { flex: 1; min-width: 0; font: 13px var(--mono); color: inherit; background: var(--log-bg);
+  border: 1px solid var(--rule); border-radius: 5px; padding: 3px 6px; }
+
+#help { position: absolute; right: 12px; top: 52px; z-index: 100000; width: min(420px, calc(100vw - 24px));
+  max-height: calc(100% - 70px); overflow: auto; background: var(--panel); border: 1px solid var(--rule);
+  border-radius: 8px; box-shadow: 0 8px 26px rgba(0,0,0,.25); padding: 6px 16px 12px; font-size: 13px; }
+#help h2 { font-size: 14px; margin: 10px 0 4px; }
+#help dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; margin: 0; }
+#help dt { font-family: var(--mono); white-space: nowrap; }
+#help dd { margin: 0; color: var(--muted); }
+#help p { margin: 6px 0; }
+
+body.dragging #desktop::after { content: "Drop files, a folder, or a .zip / .tar.gz to open it"; position: absolute;
+  inset: 12px; display: grid; place-items: center; border: 2px dashed var(--accent); border-radius: 12px;
+  background: color-mix(in srgb, var(--panel) 85%, transparent); font-size: 16px; z-index: 100001; }
+
+@media (max-width: 640px) {
+  .toolbar h1 small, #status { display: none; }
+  #console { height: 140px; }
+}
+</style>
+</head>
+<body>
+<header class="toolbar">
+  <h1>Magic <small>VLSI layout · WebAssembly</small></h1>
+  <button type="button" id="open-files" title="Open .mag, .gds or .tech files, or one .zip / .tar.gz archive">Open files…</button>
+  <button type="button" id="open-folder" title="Open a project folder">Open folder…</button>
+  <select id="demo" aria-label="Open a demo"><option value="">Demos…</option></select>
+  <button type="button" id="download" title="Write all cells and download the project as .tar.gz">Download</button>
+  <button type="button" id="help-toggle" aria-expanded="false" aria-controls="help">Help</button>
+  <span id="status" role="status">Loading…</span>
+  <input type="file" id="pick-files" multiple hidden accept=".mag,.gds,.gds2,.tech,.zip,.tar,.tgz,.gz,.ext,.sim,.spice,.cif,.lef,.def">
+  <input type="file" id="pick-folder" webkitdirectory hidden>
+</header>
+
+<main id="desktop" aria-label="Magic windows"></main>
+
+<aside id="help" hidden>
+  <h2>Mouse (box tool)</h2>
+  <dl>
+    <dt>Left</dt><dd>Move the box (its lower left corner) to the pointer</dd>
+    <dt>Right</dt><dd>Move the box's upper right corner to the pointer</dd>
+    <dt>Middle, Alt+left</dt><dd>Paint the layer under the pointer into the box (or erase on empty space)</dd>
+    <dt>Wheel</dt><dd>Scroll; Shift+wheel scrolls sideways; Ctrl+wheel or pinch zooms</dd>
+  </dl>
+  <h2>Keys (with the pointer in a window)</h2>
+  <dl>
+    <dt>:</dt><dd>Type a command (also the box below)</dd>
+    <dt>v, z, Z</dt><dd>View all, zoom in to the box, zoom out</dd>
+    <dt>s, a, i</dt><dd>Select under the box: paint, visible, cell</dd>
+    <dt>c, m, d</dt><dd>Copy, move, delete the selection</dd>
+    <dt>u, U</dt><dd>Undo, redo</dd>
+    <dt>?</dt><dd>Explain the DRC error under the box</dd>
+    <dt>Arrows</dt><dd>Scroll; Ctrl+arrows grow the box</dd>
+    <dt>space</dt><dd>Next tool</dd>
+  </dl>
+  <h2>Projects</h2>
+  <p>Open .mag files, a folder, or one .zip, .tar or .tar.gz archive, or drop them on the page. The cell that no
+    other cell uses is opened. A .tech file in the project is loaded first; otherwise the technology the cell
+    names (scmos is built in). <b>Download</b> writes every changed cell and saves the project as .tar.gz.</p>
+  <p>Files live in the browser's memory only, until you download them.</p>
+</aside>
+
+<section id="console" aria-label="Magic console">
+  <div id="log" aria-live="polite"></div>
+  <div class="command-row">
+    <button type="button" id="console-toggle" aria-expanded="true" aria-controls="log" title="Show or hide the console">☰</button>
+    <label for="command">:</label>
+    <input id="command" autocomplete="off" spellcheck="false" placeholder="Magic command, e.g. drc count, extract all, paint m1">
+  </div>
+</section>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

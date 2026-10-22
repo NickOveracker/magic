@@ -108,9 +108,9 @@ extern void NMAddPoint();
 extern void NMDeletePoint();
 extern void NMClearPoints();
 extern void NMUpdatePoints();
-extern int NMRedrawPoints();
+extern void NMRedrawPoints();
 
-extern int NMRedrawCell();
+extern void NMRedrawCell();
 extern void NMShowCell();
 extern void NMUnsetCell();
 extern void NMShowUnderBox();

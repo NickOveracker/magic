@@ -97,6 +97,7 @@ extern char TxInterruptChar;		/* The current interrupt character */
 /* command procedures */
 extern void TxDispatch(FILE *f);
 extern int TxDispatchString(const char *str, bool quiet);
+extern int TxDispatchPending(void);
 
 /* C99 compat */
 extern void TxMore(const char *mesg);

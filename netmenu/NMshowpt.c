@@ -71,7 +71,7 @@ static int nmspArrayUsed = 0;		/* Number of entries actually used. */
  * ----------------------------------------------------------------------------
  */
 
-int
+void
 NMRedrawPoints(window, plane)
     MagWindow *window;		/* Window in which to redisplay. */
     Plane *plane;		/* Non-space tiles on this plane indicate
@@ -86,8 +86,8 @@ NMRedrawPoints(window, plane)
      * root definition for this window is the edit's root definition.
      */
 
-    if (nmspArrayUsed == 0) return 0;
-    if (((CellUse *)(window->w_surfaceID))->cu_def != EditRootDef) return 0;
+    if (nmspArrayUsed == 0) return;
+    if (((CellUse *)(window->w_surfaceID))->cu_def != EditRootDef) return;
 
     for (i = 0; i < nmspArrayUsed; i += 1)
     {
@@ -143,7 +143,7 @@ NMRedrawPoints(window, plane)
 	    GrClipBox(&screen2, STYLE_SOLIDHIGHLIGHTS);
 	}
     }
-    return 0;
+    return;
 }
 
 int

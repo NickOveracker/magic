@@ -116,6 +116,9 @@ static char *grDisplayTypes[] = {
     "CAIRO",
     "XR",
 #endif
+#ifdef MAGIC_WEB
+    "WEB",
+#endif
     "NULL",
     NULL};
 
@@ -123,6 +126,7 @@ extern bool x11SetDisplay();
 extern bool oglSetDisplay();
 extern bool nullSetDisplay();
 extern bool cairoSetDisplay();
+extern bool webSetDisplay();
 
 static bool (*(grInitProcs[]))() = {
 #ifdef	X11
@@ -140,6 +144,9 @@ static bool (*(grInitProcs[]))() = {
 #ifdef CAIRO
     cairoSetDisplay,
     cairoSetDisplay,
+#endif
+#ifdef MAGIC_WEB
+    webSetDisplay,
 #endif
     nullSetDisplay,
     NULL};

@@ -29,6 +29,81 @@ static char rcsid[] __attribute__ ((unused)) = "$Header: /usr/cvsroot/magic-8.0/
 #include <X11/X.h>
 #include <X11/Xlib.h>
 #include <X11/keysym.h>
+#define MACRO_KEYSYMS		/* Extended (keysym) macro names */
+#define KEYSYMS_ACTIVE()	(grXdpy != NULL)
+#elif defined(MAGIC_WEB)
+/* The web build has no Xlib, but its key events use X11 keysyms and
+ * modifier bits, so extended macros work the same way.  This table covers
+ * the keysym names that the default macros and the browser can produce.
+ */
+#define MACRO_KEYSYMS
+#define KEYSYMS_ACTIVE()	(TRUE)
+#define ShiftMask	(1<<0)
+#define LockMask	(1<<1)
+#define ControlMask	(1<<2)
+#define Mod1Mask	(1<<3)
+#define NoSymbol	0
+typedef int KeySym;
+
+static const struct { const char *name; int sym; } webKeysyms[] = {
+    {"space", 0x20}, {"exclam", 0x21}, {"quotedbl", 0x22},
+    {"numbersign", 0x23}, {"dollar", 0x24}, {"percent", 0x25},
+    {"ampersand", 0x26}, {"apostrophe", 0x27}, {"parenleft", 0x28},
+    {"parenright", 0x29}, {"asterisk", 0x2a}, {"plus", 0x2b},
+    {"comma", 0x2c}, {"minus", 0x2d}, {"period", 0x2e}, {"slash", 0x2f},
+    {"colon", 0x3a}, {"semicolon", 0x3b}, {"less", 0x3c}, {"equal", 0x3d},
+    {"greater", 0x3e}, {"question", 0x3f}, {"at", 0x40},
+    {"bracketleft", 0x5b}, {"backslash", 0x5c}, {"bracketright", 0x5d},
+    {"asciicircum", 0x5e}, {"underscore", 0x5f}, {"grave", 0x60},
+    {"braceleft", 0x7b}, {"bar", 0x7c}, {"braceright", 0x7d},
+    {"asciitilde", 0x7e},
+    {"BackSpace", 0xff08}, {"Tab", 0xff09}, {"Return", 0xff0d},
+    {"Escape", 0xff1b}, {"Delete", 0xffff}, {"Insert", 0xff63},
+    {"Home", 0xff50}, {"Left", 0xff51}, {"Up", 0xff52}, {"Right", 0xff53},
+    {"Down", 0xff54}, {"Prior", 0xff55}, {"Page_Up", 0xff55},
+    {"Next", 0xff56}, {"Page_Down", 0xff56}, {"End", 0xff57},
+    {"KP_Enter", 0xff8d}, {"KP_Home", 0xff95}, {"KP_Left", 0xff96},
+    {"KP_Up", 0xff97}, {"KP_Right", 0xff98}, {"KP_Down", 0xff99},
+    {"KP_Prior", 0xff9a}, {"KP_Page_Up", 0xff9a}, {"KP_Next", 0xff9b},
+    {"KP_Page_Down", 0xff9b}, {"KP_End", 0xff9c}, {"KP_Begin", 0xff9d},
+    {"KP_Insert", 0xff9e}, {"KP_Delete", 0xff9f}, {"KP_Multiply", 0xffaa},
+    {"KP_Add", 0xffab}, {"KP_Subtract", 0xffad}, {"KP_Decimal", 0xffae},
+    {"KP_Divide", 0xffaf}, {"KP_0", 0xffb0}, {"KP_1", 0xffb1},
+    {"KP_2", 0xffb2}, {"KP_3", 0xffb3}, {"KP_4", 0xffb4}, {"KP_5", 0xffb5},
+    {"KP_6", 0xffb6}, {"KP_7", 0xffb7}, {"KP_8", 0xffb8}, {"KP_9", 0xffb9},
+    {"F1", 0xffbe}, {"F2", 0xffbf}, {"F3", 0xffc0}, {"F4", 0xffc1},
+    {"F5", 0xffc2}, {"F6", 0xffc3}, {"F7", 0xffc4}, {"F8", 0xffc5},
+    {"F9", 0xffc6}, {"F10", 0xffc7}, {"F11", 0xffc8}, {"F12", 0xffc9},
+    {"Pointer_Button1", 0xfee9}, {"Pointer_Button2", 0xfeea},
+    {"Pointer_Button3", 0xfeeb}, {"Pointer_Button4", 0xfeec},
+    {"Pointer_Button5", 0xfeed},
+    {NULL, 0}
+};
+
+static KeySym
+XStringToKeysym(const char *name)
+{
+    int i;
+    for (i = 0; webKeysyms[i].name != NULL; i++)
+	if (!strcmp(webKeysyms[i].name, name)) return webKeysyms[i].sym;
+    return NoSymbol;
+}
+
+static char *
+XKeysymToString(KeySym ks)
+{
+    static char ascii[2];
+    int i;
+    for (i = 0; webKeysyms[i].name != NULL; i++)
+	if (webKeysyms[i].sym == ks) return (char *)webKeysyms[i].name;
+    if (ks > 0x20 && ks < 0x7f)
+    {
+	ascii[0] = (char)ks;
+	ascii[1] = '\0';
+	return ascii;
+    }
+    return NULL;
+}
 #endif
 
 #include "utils/magic.h"
@@ -517,14 +592,16 @@ MacroName(xc)
     char *vis;
     static char hex[17] = "0123456789ABCDEF";
 
-#ifdef XLIB
+#ifdef MACRO_KEYSYMS
     char *str;
+#ifdef XLIB
     extern Display *grXdpy;
+#endif
     KeySym ks = xc & 0xffff;
     int kmod = xc >> 16;
 
     str = NULL;
-    if (grXdpy != NULL) {
+    if (KEYSYMS_ACTIVE()) {
         ks = xc & 0xffff;
 	if (ks != NoSymbol) str = XKeysymToString(ks);
     }
@@ -568,7 +645,7 @@ MacroName(xc)
 	vis = (char *) mallocMagic( sizeof(char) * 8 );
 	vis[0] = '0';
 	vis[1] = 'x';
-#ifdef XLIB
+#ifdef MACRO_KEYSYMS
 	vis[2] = hex[ (kmod & 0xf)];
 #else
 	vis[2] = '0';
@@ -604,15 +681,17 @@ MacroKey(str, verbose)
 {
     static int warn = 1;
 
-#ifdef XLIB
+#ifdef MACRO_KEYSYMS
     int kc;
     char *vis;
+#ifdef XLIB
     extern Display *grXdpy;
+#endif
     KeySym ks;
     int kmod = 0;
 
     *verbose = 1;
-    if (grXdpy != NULL)
+    if (KEYSYMS_ACTIVE())
     {
 	vis = str;
 	while( (*vis) != '\0' )

@@ -14,6 +14,9 @@ SRCS     = magicTop.c
 ifeq (${MAKE_WASM},1)
 SRCS    += magicWasm.c
 endif
+ifeq (${MAGIC_WEB},1)
+SRCS    += magicWeb.c
+endif
 
 EXTRA_LIBS = ${MAGICDIR}/bplane/libbplane.o \
 	    ${MAGICDIR}/cmwind/libcmwind.o \
@@ -71,7 +74,9 @@ endif
 
 main: magic proto.magicrc
 ifeq (${MAKE_WASM},1)
+ifneq (${MAGIC_WEB},1)
 	@bash ${MAGICSRC}/toolchains/emscripten/post-build.sh magic.js magic.wasm
+endif
 endif
 
 tcl-main: tclmagic${SHDLIB_EXT} proto.magicrc

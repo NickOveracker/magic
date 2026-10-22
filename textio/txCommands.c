@@ -1773,9 +1773,16 @@ TxDispatchString(
 {
     int result = 0;
     DQueue inputCommands;
+    /* A point set before the call applies to every command in the string,
+     * not just the first ("select area; what").
+     */
+    bool havePoint = txHaveCurrentPoint;
+    Point point = txCurrentPoint;
+    int wid = txCurrentWindowID;
 
     DQInit(&inputCommands, 4);
     TxParseString_internal(str, &inputCommands, (TxInputEvent *) NULL);
+    txHaveCurrentPoint = FALSE;
 
     while (!DQIsEmpty(&inputCommands))
     {
@@ -1783,11 +1790,10 @@ TxDispatchString(
 
 	cmd = (TxCommand *) DQPopFront(&inputCommands);
 
-	if (txHaveCurrentPoint)
+	if (havePoint)
 	{
-	    cmd->tx_p = txCurrentPoint;
-	    cmd->tx_wid = txCurrentWindowID;
-	    txHaveCurrentPoint = FALSE;
+	    cmd->tx_p = point;
+	    cmd->tx_wid = wid;
 	}
 
 	result = WindSendCommand((MagWindow *) NULL, cmd, quiet);
@@ -1805,6 +1811,60 @@ TxDispatchString(
     DQFree(&inputCommands);
 
     return result;
+}
+
+/*
+ * ----------------------------------------------------------------------------
+ * TxDispatchPending --
+ *
+ *	Non-blocking counterpart of TxDispatch for event-driven front ends
+ *	(the web build): turn every queued input event into commands, send
+ *	them to their windows, then redisplay.  Returns at once when no
+ *	events are queued.
+ *
+ * Results:
+ *	The number of commands dispatched.
+ *
+ * Side effects:
+ *	Whatever the commands do.
+ * ----------------------------------------------------------------------------
+ */
+
+int
+TxDispatchPending(void)
+{
+    DQueue inputCommands;
+    int count = 0;
+
+    DQInit(&inputCommands, 4);
+
+    while (!DQIsEmpty(&txInputEvents) || !DQIsEmpty(&inputCommands))
+    {
+	if (DQIsEmpty(&inputCommands))
+	    txGetInteractiveCommand(FALSE, &inputCommands);
+
+	while (!DQIsEmpty(&inputCommands))
+	{
+	    TxCommand *cmd;
+
+	    cmd = (TxCommand *) DQPopFront(&inputCommands);
+	    if (txHaveCurrentPoint)
+	    {
+		cmd->tx_p = txCurrentPoint;
+		cmd->tx_wid = txCurrentWindowID;
+		txHaveCurrentPoint = FALSE;
+	    }
+	    if (txLogFile != NULL) txLogCommand(cmd);
+	    (void) WindSendCommand((MagWindow *) NULL, cmd, FALSE);
+	    TxFreeCommand(cmd);
+	    TxCommandNumber++;
+	    count++;
+	}
+    }
+
+    WindUpdate();
+    DQFree(&inputCommands);
+    return count;
 }
 
 #endif	/* !MAGIC_WRAPPER */

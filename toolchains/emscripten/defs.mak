@@ -71,3 +71,24 @@ TOP_EXTRA_LIBS += \
 # exist, so it never lists a name that would break the link.
 SCMOS_DISPLAY := $(wildcard ${MAGICSRC}/scmos/mos.*dstyle ${MAGICSRC}/scmos/mos.*.cmap)
 TOP_EXTRA_LIBS += $(foreach f,$(SCMOS_DISPLAY),--embed-file $(f)@/magic/sys/current/$(notdir $(f)))
+
+# Interactive web build (web/build.sh sets MAGIC_WEB=1): add the WEB graphics
+# driver (graphics/grWeb.c) and the event entry points (magic/magicWeb.c).
+# MAGIC_WEB also enables X11-style extended macros in utils/macros.c and
+# time-sliced background DRC in drc/DRCcontin.c.  The cursor and window
+# glyphs that the driver asks for are embedded next to the tech files.
+ifeq (${MAGIC_WEB},1)
+GR_SRCS += grWeb.c
+DFLAGS  += -DMAGIC_WEB
+DFLAGS_NOSTUB += -DMAGIC_WEB
+TOP_EXTRA_LIBS += \
+    -sEXPORTED_FUNCTIONS=_magic_wasm_init,_magic_wasm_run_command,_magic_wasm_source_file,_magic_wasm_update,_magic_web_init,_magic_web_button,_magic_web_key,_magic_web_pump,_magic_web_command,_magic_web_drc_step,_magic_web_configure,_magic_web_screen,_magic_web_redraw,_magic_web_drc_busy,_malloc,_free \
+    -sEXPORTED_RUNTIME_METHODS=cwrap,ccall,FS,setValue,getValue,UTF8ToString,stringToUTF8,HEAP32,HEAPU8 \
+    --embed-file ${MAGICSRC}/graphics/color.glyphs@/magic/sys/color.glyphs \
+    --embed-file ${MAGICSRC}/graphics/FreeSans.pt3@/magic/sys/FreeSans.pt3 \
+    --embed-file ${MAGICSRC}/graphics/FreeSerif.pt3@/magic/sys/FreeSerif.pt3 \
+    --embed-file ${MAGICSRC}/graphics/FreeMono.pt3@/magic/sys/FreeMono.pt3 \
+    --embed-file ${MAGICSRC}/windows/windows14.glyphs@/magic/sys/windows14.glyphs \
+    -sENVIRONMENT=web \
+    -sEMULATE_FUNCTION_POINTER_CASTS=1
+endif

@@ -78,7 +78,7 @@ static CellDef *nmscShowDef = NULL;
 static Plane *nmscPlane;	/* Shared between procs below. */
 extern int nmscRedrawFunc();	/* Forward declaration. */
 
-int
+void
 NMRedrawCell(window, plane)
     MagWindow *window;		/* Window in which to redisplay. */
     Plane *plane;		/* Non-space tiles on this plane indicate,
@@ -93,7 +93,7 @@ NMRedrawCell(window, plane)
      * this window.
      */
 
-    if (((CellUse *)(window->w_surfaceID))->cu_def != nmscRootDef) return 0;
+    if (((CellUse *)(window->w_surfaceID))->cu_def != nmscRootDef) return;
 
     /* If this window is zoomed way out (less than 1 pixel per lambda)
      * use solid highlighting to maximize visibility.  It the window
@@ -110,7 +110,7 @@ NMRedrawCell(window, plane)
      * redraw.
      */
 
-    if (!DBBoundPlane(plane, &area)) return 0;
+    if (!DBBoundPlane(plane, &area)) return;
     nmscPlane = plane;
     for (i = PL_TECHDEPBASE; i < DBNumPlanes; i += 1)
     {
@@ -118,7 +118,7 @@ NMRedrawCell(window, plane)
 	    &area, &DBAllButSpaceAndDRCBits,
 	    nmscRedrawFunc, (ClientData) window);
     }
-    return 0;
+    return;
 }
 
 int
