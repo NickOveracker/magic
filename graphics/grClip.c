@@ -71,8 +71,8 @@ static Rect *grGridRect;
 
 /* Current state for rectangle and text drawing */
 static int grCurWMask, grCurStipple;
-#ifndef MAGIC_WRAPPER
-static 				/* Used in grTkCommon.c, so don't make static */
+#if !defined(MAGIC_WRAPPER) && !defined(MAGIC_WEB)
+static 				/* Used in grTkCommon.c and grWeb.c, so don't make static */
 #endif
 int grCurOutline, grCurFill, grCurColor;
 

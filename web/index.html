@@ -10,12 +10,13 @@
   color-scheme: light dark;
   --bg: #e9e8ef; --panel: #ffffff; --head: #f3f1f8; --fg: #1d1d1f; --muted: #5f6368;
   --rule: #cfcbd9; --accent: #4c26b8; --error: #b3261e; --info: #1e6b3a;
-  --log-bg: #fbfbfd; --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --log-bg: #fbfbfd; --accent-soft: #e6dffa; --magic-bar: #8b4726; --magic-bar-fg: #ffffff; --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #17181b; --panel: #222327; --head: #2b2c31; --fg: #e8e8ea; --muted: #a0a4a8;
     --rule: #3c3e44; --accent: #a68cff; --error: #f2948c; --info: #8fd3a4; --log-bg: #1b1c1f;
+    --accent-soft: #3a3352; --magic-bar: #6e3a20; --magic-bar-fg: #f3e9e2;
   }
 }
 * { box-sizing: border-box; }
@@ -36,7 +37,7 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
   text-overflow: ellipsis; max-width: 40vw; }
 
 #desktop { position: relative; flex: 1; min-height: 0; overflow: hidden; }
-.magic-canvas { display: block; touch-action: none; outline: none; }
+.magic-canvas { position: absolute; left: 0; top: 0; display: block; touch-action: none; outline: none; }
 .fw-window:focus-within { border-color: var(--accent); }
 
 #console { display: flex; flex-direction: column; height: 190px; min-height: 34px; resize: vertical;
@@ -53,7 +54,7 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 #command { flex: 1; min-width: 0; font: 13px var(--mono); color: inherit; background: var(--log-bg);
   border: 1px solid var(--rule); border-radius: 5px; padding: 3px 6px; }
 
-#help { position: absolute; right: 12px; top: 52px; z-index: 100000; width: min(420px, calc(100vw - 24px));
+#help { position: absolute; right: 12px; top: 52px; z-index: 900000; width: min(420px, calc(100vw - 24px));
   max-height: calc(100% - 70px); overflow: auto; background: var(--panel); border: 1px solid var(--rule);
   border-radius: 8px; box-shadow: 0 8px 26px rgba(0,0,0,.25); padding: 6px 16px 12px; font-size: 13px; }
 #help h2 { font-size: 14px; margin: 10px 0 4px; }
@@ -64,7 +65,7 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 
 body.dragging #desktop::after { content: "Drop files, a folder, or a .zip / .tar.gz to open it"; position: absolute;
   inset: 12px; display: grid; place-items: center; border: 2px dashed var(--accent); border-radius: 12px;
-  background: color-mix(in srgb, var(--panel) 85%, transparent); font-size: 16px; z-index: 100001; }
+  background: color-mix(in srgb, var(--panel) 85%, transparent); font-size: 16px; z-index: 900001; }
 
 @media (max-width: 640px) {
   .toolbar h1 small, #status { display: none; }
@@ -105,6 +106,15 @@ body.dragging #desktop::after { content: "Drop files, a folder, or a .zip / .tar
     <dt>?</dt><dd>Explain the DRC error under the box</dd>
     <dt>Arrows</dt><dd>Scroll; Ctrl+arrows grow the box</dd>
     <dt>space</dt><dd>Next tool</dd>
+  </dl>
+  <h2>Window menus and toolbar</h2>
+  <p>Each layout window has the Tcl/Tk wrapper's menus (File, Edit, Cell, Window, Layers, Drc, Options), a DRC
+    switch, and the box or pointer position. Options opens the cell, library, technology and DRC managers, the
+    netlist and colormap windows, a command entry for the window, and the crosshair.</p>
+  <dl>
+    <dt>Click a layer</dt><dd>Show it; right click hides it</dd>
+    <dt>Middle, Alt+click</dt><dd>Paint it into the box; Shift+middle erases</dd>
+    <dt>p e s S l u</dt><dd>With the pointer on a layer: paint, erase, select more, select less, lock, unlock</dd>
   </dl>
   <h2>Projects</h2>
   <p>Open .mag files, a folder, or one .zip, .tar or .tar.gz archive, or drop them on the page. The cell that no

@@ -4,6 +4,7 @@
 import createMagic from "./magic.js";
 import {CanvasDriver} from "./canvas-driver.js";
 import {readArchive, isArchive, stripCommonFolder, cleanPath, writeTarGz} from "./archive.js";
+import {Gui} from "./wrapper.js";
 
 const $ = selector => document.querySelector(selector);
 const desktop = $("#desktop");
@@ -12,14 +13,16 @@ const commandInput = $("#command");
 const status = $("#status");
 
 const DEMOS = {
-    mult4: "4×4 multiplier (default)",
+    full_adder_path: "Mirror full adder, sized for speed (default)",
+    add2x_path: "2-bit adder block, sized for speed",
     mult4_path: "4×4 multiplier, sized for speed",
+    mult4: "4×4 multiplier",
     add2x: "2-bit adder block",
     full_adder: "Mirror full adder",
     c_element: "C-element",
     inverter: "Inverter",
 };
-const DEFAULT_DEMO = "mult4";
+const DEFAULT_DEMO = "full_adder_path";
 const BUILT_IN_TECHS = ["scmos", "minimum"];
 
 let magic = null;            // The Emscripten module
@@ -30,8 +33,10 @@ let capture = null;          // Collects output while a command's result is bein
 // ----- Output
 
 function print(textLine, kind) {
+    // Output read back by the page (cellname lists, style queries) stays out of the console.
     if(capture) {
         capture.push(textLine);
+        return;
     }
     const line = document.createElement("div");
     line.className = "log-line" + (kind ? " log-" + kind : "");
@@ -64,6 +69,7 @@ function schedulePump() {
         pumpQueued = false;
         guard(() => magic._magic_web_pump());
         scheduleDrc();
+        gui.scheduleUpdate();
     });
 }
 
@@ -77,6 +83,9 @@ function scheduleDrc() {
         const busy = guard(() => magic._magic_web_drc_step(12));
         setStatus(busy ? "Checking design rules…" : readyText());
         drcTimer = busy ? setTimeout(step, 0) : null;
+        if(!busy) {
+            gui.scheduleUpdate();
+        }
     }, 20);
 }
 
@@ -100,29 +109,48 @@ function fatal(error) {
     magic = null;
 }
 
-// Run a command line in the active window (as if typed after ":").
-function run(command, quiet) {
+// Run a command line in window wid (-1: the topmost layout window), as if typed after ":".
+function runIn(wid, command, quiet) {
     if(!magic) {
         return -1;
     }
     if(!quiet) {
         print(": " + command, "command");
     }
-    const result = guard(() => magic.ccall("magic_web_command", "number", ["number", "string"],
-        [activeWindow, command]));
+    const result = guard(() => magic.ccall("magic_web_command", "number", ["number", "string"], [wid, command]));
     scheduleDrc();
+    gui.scheduleUpdate();
     return result;
 }
 
+// Run a command line in the active window.
+function run(command, quiet) {
+    return runIn(activeWindow, command, quiet);
+}
+
 // Run a command and return what it printed.
-function runCapture(command) {
+function captureIn(wid, command) {
     capture = [];
     try {
-        run(command, true);
+        runIn(wid, command, true);
         return capture;
     } finally {
         capture = null;
     }
+}
+
+function runCapture(command) {
+    return captureIn(activeWindow, command);
+}
+
+// Call one of the magic_web_* queries; most return text.
+function query(name, args) {
+    if(!magic) {
+        return "";
+    }
+    const numeric = name === "magic_web_layer_icon";
+    return guard(() => magic.ccall(name, numeric ? "number" : "string",
+        args.map(a => typeof a === "number" ? "number" : "string"), args)) || "";
 }
 
 // ----- Files
@@ -331,13 +359,92 @@ async function download() {
     const files = listFiles(project.root);
     const blob = new Blob([await writeTarGz(files.map(f => ({path: project.name + "/" + f.path, data: f.data})))],
         {type: "application/gzip"});
+    saveBlob(project.name + ".tar.gz", blob);
+    print(`Saved ${files.length} file${files.length === 1 ? "" : "s"} to ${project.name}.tar.gz`, "info");
+}
+
+// Files of the current project, relative to its folder.
+function projectFiles() {
+    return project ? listFiles(project.root).map(f => f.path) : [];
+}
+
+function saveBlob(name, blob) {
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = project.name + ".tar.gz";
+    link.download = name;
     link.click();
     setTimeout(() => URL.revokeObjectURL(link.href), 10000);
-    print(`Saved ${files.length} file${files.length === 1 ? "" : "s"} to ${link.download}`, "info");
 }
+
+// Ask for files with a temporary <input type=file>.
+function pickFiles(accept, multiple) {
+    return new Promise(resolve => {
+        const input = document.createElement("input");
+        input.type = "file";
+        input.accept = accept;
+        input.multiple = multiple;
+        input.addEventListener("change", () => resolve(Array.from(input.files)));
+        input.click();
+    });
+}
+
+// Copy picked files into the project folder without reloading it.
+async function addToProject(files) {
+    if(!project) {
+        return [];
+    }
+    const added = [];
+    for(const file of files) {
+        const path = cleanPath(file.name);
+        magic.FS.writeFile(project.root + "/" + path, new Uint8Array(await file.arrayBuffer()));
+        added.push(path);
+    }
+    print(`Added ${added.join(", ")} to ${project.root}`, "info");
+    return added;
+}
+
+const appForGui = {
+    get driver() {
+        return driver;
+    },
+    get project() {
+        return project;
+    },
+    run: runIn,
+    capture: captureIn,
+    query,
+    print,
+    download,
+    projectFiles,
+    projectCells: () => projectFiles().filter(p => /\.mag$/i.test(p)).map(p => p.replace(/\.mag$/i, "")),
+    projectTechs: () => projectFiles().filter(p => /\.tech$/i.test(p)).map(p => p.replace(/\.tech$/i, "")),
+    async addFiles() {
+        await addToProject(await pickFiles(".mag", true));
+        gui.managers.library?.refresh();
+    },
+    async readGds(wid) {
+        const [path] = await addToProject(await pickFiles(".gds,.gds2,.gdsii,.strm", false));
+        if(path) {
+            runIn(wid, `gds read ${path}`);
+            const top = cellNames("topcells")[0];
+            if(top) {
+                runIn(wid, `load ${top}`);
+            }
+        }
+    },
+    downloadFile(path) {
+        try {
+            saveBlob(path.split("/").pop(), new Blob([magic.FS.readFile(path)]));
+        } catch(e) {
+            print(`${path} was not written.`, "error");
+        }
+    },
+    saveText(name, text) {
+        saveBlob(name, new Blob([text], {type: "text/plain"}));
+    },
+};
+
+const gui = new Gui(appForGui);
 
 async function loadDemo(name) {
     setStatus(`Loading ${name}…`);
@@ -420,10 +527,22 @@ $("#console-toggle").addEventListener("click", () => {
     const collapsed = $("#console").classList.toggle("collapsed");
     $("#console-toggle").setAttribute("aria-expanded", String(!collapsed));
 });
-$("#help-toggle").addEventListener("click", () => {
-    const help = $("#help");
-    help.hidden = !help.hidden;
-    $("#help-toggle").setAttribute("aria-expanded", String(!help.hidden));
+function showHelp(show) {
+    $("#help").hidden = !show;
+    $("#help-toggle").setAttribute("aria-expanded", String(show));
+}
+$("#help-toggle").addEventListener("click", () => showHelp($("#help").hidden));
+// Clicking anywhere else, or Escape, closes the help.
+document.addEventListener("pointerdown", event => {
+    if(!$("#help").hidden && !event.target.closest("#help, #help-toggle")) {
+        showHelp(false);
+    }
+}, true);
+document.addEventListener("keydown", event => {
+    if(event.key === "Escape" && !$("#help").hidden) {
+        showHelp(false);
+        $("#help-toggle").focus();
+    }
 });
 
 document.addEventListener("dragover", event => {
@@ -460,6 +579,8 @@ const driver = new CanvasDriver(desktop, {
         activeWindow = wid;
     },
     onMessage: message => print(message, "info"),
+    onDecorate: win => gui.decorate(win),
+    onPointer: win => gui.pointerMoved(win),
 });
 
 async function start() {
@@ -484,13 +605,14 @@ async function start() {
     }
     const demo = new URLSearchParams(location.search).get("demo") || DEFAULT_DEMO;
     await loadDemo(DEMOS[demo] ? demo : DEFAULT_DEMO);
+    gui.scheduleUpdate();
     refocusCanvas();
 }
 
 start().catch(fatal);
 
 // For tests and the console.
-window.magicApp = {run, runCapture, loadProject, get module() {
+window.magicApp = {run, runIn, runCapture, query, loadProject, gui, get module() {
     return magic;
 }, driver, get project() {
     return project;

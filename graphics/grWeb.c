@@ -36,6 +36,7 @@
 #include "graphics/glyphs.h"
 #include "dbwind/dbwind.h"
 #include "database/fonts.h"
+#include "dbwind/dbwtech.h"
 
 /* ------------------------------------------------------------------------
  * JavaScript side.  Every call lands in Module.magicWeb (web/magic-canvas.js).
@@ -45,8 +46,9 @@
  */
 
 EM_JS(void, webJsSelect, (int wid), { Module.magicWeb.select(wid); });
-EM_JS(void, webJsCreate, (int wid, int x, int y, int w, int h, const char *title), {
-    Module.magicWeb.createWindow(wid, x, y, w, h, UTF8ToString(title));
+EM_JS(void, webJsCreate, (int wid, int x, int y, int w, int h, const char *title,
+	const char *client), {
+    Module.magicWeb.createWindow(wid, x, y, w, h, UTF8ToString(title), UTF8ToString(client));
 });
 EM_JS(void, webJsDelete, (int wid), { Module.magicWeb.deleteWindow(wid); });
 EM_JS(void, webJsConfigure, (int wid, int x, int y, int w, int h), {
@@ -112,6 +114,8 @@ EM_JS(int, webJsCursorPos, (int wid, int *out), {
  * ------------------------------------------------------------------------
  */
 
+
+extern int grCurFill, grCurOutline;
 
 static MagWindow *webCurrent = NULL;	/* Window that drawing goes to */
 static int webCharSize = GR_TEXT_SMALL;
@@ -559,7 +563,8 @@ GrWebCreate(w, name)
     w->w_grdata = (ClientData)(intptr_t)(w->w_wid + 1);
     grwebFrameToPage(w, &x, &y, &width, &height);
     webJsCreate(w->w_wid, x, y, width, height,
-	    (w->w_caption != NULL) ? w->w_caption : (name ? name : "magic"));
+	    (w->w_caption != NULL) ? w->w_caption : (name ? name : "magic"),
+	    (w->w_client != NULL) ? WindGetClientName(w->w_client) : "");
     return TRUE;
 }
 
@@ -622,6 +627,103 @@ GrWebUnlock(w)
     MagWindow *w;
 {
     grSimpleUnlock(w);
+    /* Icons are drawn through a temporary window on the stack. */
+    if (w != GR_LOCK_SCREEN && (w->w_flags & WIND_OFFSCREEN)) webCurrent = NULL;
+}
+
+/* ------------------------------------------------------------------------
+ * Layer icons for the page's toolbar (the Tk "layer" image type)
+ * ------------------------------------------------------------------------
+ */
+
+/* Outline of a size x size icon with the current line style. */
+static void
+grwebIconBox(r)
+    Rect *r;
+{
+    (*grDrawLinePtr)(r->r_xbot, r->r_ybot, r->r_xtop - 1, r->r_ybot);
+    (*grDrawLinePtr)(r->r_xtop - 1, r->r_ybot, r->r_xtop - 1, r->r_ytop - 1);
+    (*grDrawLinePtr)(r->r_xtop - 1, r->r_ytop - 1, r->r_xbot, r->r_ytop - 1);
+    (*grDrawLinePtr)(r->r_xbot, r->r_ytop - 1, r->r_xbot, r->r_ybot);
+}
+
+/*
+ * Draw the icon for a layer ("errors", "labels" and "subcell" are special)
+ * into the page's icon canvas number "icon", the way ImgLayerConfigureInstance
+ * in grTkCommon.c draws Tk layer images.  "pale" uses the layer's disabled
+ * styles and adds the lock glyph, as for locked layers.  Returns FALSE for
+ * an unknown layer.
+ */
+bool
+GrWebLayerIcon(icon, name, size, pale)
+    int icon;
+    char *name;
+    int size;
+    bool pale;
+{
+    MagWindow tmpmw;
+    TileType layer;
+    TileTypeBitMask *mask;
+    Rect r;
+    int i, special = 0, saveStyle;
+
+    if (!strcmp(name, "none")) layer = TT_SPACE;
+    else if (!strcmp(name, "errors")) layer = TT_ERROR_P;
+    else if (!strcmp(name, "labels")) layer = TT_SPACE, special = 1;
+    else if (!strcmp(name, "subcell")) layer = TT_SPACE, special = 2;
+    else layer = DBTechNameType(name);
+    if (layer < 0) return FALSE;
+
+    r.r_xbot = r.r_ybot = 0;
+    r.r_xtop = r.r_ytop = size;
+    memset(&tmpmw, 0, sizeof tmpmw);
+    tmpmw.w_wid = -2 - icon;	/* Negative ids are icon canvases */
+    tmpmw.w_flags = WIND_OFFSCREEN;
+    tmpmw.w_allArea = r;
+    tmpmw.w_screenArea = r;
+    tmpmw.w_clipAgainst = NULL;
+
+    GrLock(&tmpmw, FALSE);
+    grCurClip = r;
+    saveStyle = grCurDStyle;
+
+    GrSetStuff(STYLE_ERASEALL);
+    grInformDriver();
+    (*grFillRectPtr)(&r);
+
+    for (i = 0; i < DBWNumStyles; i++)
+    {
+	mask = DBWStyleToTypes(i);
+	if (!TTMaskHasType(mask, layer)) continue;
+	GrSetStuff(i + TECHBEGINSTYLES + (pale ? DBWNumStyles : 0));
+	grInformDriver();
+	if ((grCurFill == GR_STSOLID) || (grCurFill == GR_STSTIPPLE))
+	    (*grFillRectPtr)(&r);
+	if (grCurOutline != 0)
+	    grwebIconBox(&r);
+	if (grCurFill == GR_STCROSS)
+	{
+	    (*grDrawLinePtr)(r.r_xbot, r.r_ybot, r.r_xtop - 1, r.r_ytop - 1);
+	    (*grDrawLinePtr)(r.r_xbot, r.r_ytop - 1, r.r_xtop - 1, r.r_ybot);
+	}
+    }
+    if (special != 0)
+    {
+	GrSetStuff((special == 1) ? STYLE_LABEL : STYLE_BBOX);
+	grInformDriver();
+	grwebIconBox(&r);
+    }
+    if (pale)
+    {
+	GrSetStuff(STYLE_BLACK);
+	grInformDriver();
+	GrDrawGlyphNum(23, 0, 0);	/* Lock glyph, as the Tk toolbar uses */
+    }
+
+    GrSetStuff(saveStyle);
+    grInformDriver();
+    GrUnlock(&tmpmw);
+    return TRUE;
 }
 
 /* ------------------------------------------------------------------------

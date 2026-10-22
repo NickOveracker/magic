@@ -745,6 +745,90 @@ drcWhyFunc(scx, cdarg)
 		(dolist) ? drcListError : drcPrintError, (ClientData) scx);
 }
 
+#if defined(MAGIC_WEB) && !defined(MAGIC_WRAPPER)
+
+/*
+ * DRCWebListAll --
+ *
+ *	The non-Tcl counterpart of DRCWhyAll for the web build's DRC
+ *	manager: call emit(rule, area) once for every error in the area of
+ *	use, with the area in top-level coordinates.
+ */
+
+static void (*drcWebEmit)();
+static int drcWebFunc();
+
+static void
+drcWebError(celldef, rect, cptr, scx)
+    CellDef *celldef;		/* Not used */
+    Rect *rect;			/* Area of the error */
+    DRCCookie *cptr;		/* Rule violated */
+    SearchContext *scx;		/* Only errors in scx->scx_area are reported */
+{
+    Rect r;
+    int drcsave = DRCErrorCount;
+
+    GeoTransRect(&scx->scx_trans, rect, &r);
+    if (!GEO_OVERLAP(&scx->scx_area, rect)) return;
+
+    if (cptr->drcc_tag == DRC_IN_SUBCELL_TAG)
+    {
+	SearchContext newscx;
+
+	newscx.scx_area = *rect;
+	newscx.scx_use = scx->scx_use;
+	newscx.scx_x = scx->scx_use->cu_xlo;
+	newscx.scx_y = scx->scx_use->cu_ylo;
+	newscx.scx_trans = scx->scx_trans;
+	DBTreeSrCells(&newscx, 0, drcWebFunc, (ClientData)NULL);
+    }
+    if (drcsave == DRCErrorCount)
+    {
+	DRCErrorCount += 1;
+	(*drcWebEmit)(drcSubstitute(cptr), &r);
+    }
+}
+
+static int
+drcWebFunc(scx, cdarg)
+    SearchContext *scx;
+    ClientData cdarg;		/* Unused */
+{
+    (void) DRCInteractionCheck(scx->scx_use->cu_def, &scx->scx_area,
+		&scx->scx_area, drcWebError, (ClientData)scx);
+    return 0;
+}
+
+int
+DRCWebListAll(use, area, emit)
+    CellUse *use;		/* Top of the hierarchy to check */
+    Rect *area;			/* Area to report, in use's def coordinates */
+    void (*emit)();		/* emit(char *rule, Rect *area) */
+{
+    SearchContext scx;
+    Rect box;
+
+    drcWebEmit = emit;
+    DRCErrorCount = 0;
+    box = DRCdef->cd_bbox;
+
+    UndoDisable();
+    scx.scx_use = use;
+    scx.scx_x = use->cu_xlo;
+    scx.scx_y = use->cu_ylo;
+    scx.scx_area = *area;
+    scx.scx_trans = GeoIdentityTransform;
+    drcWebFunc(&scx, (ClientData)NULL);
+    UndoEnable();
+
+    DBReComputeBbox(DRCdef);
+    (void) GeoInclude(&DRCdef->cd_bbox, &box);
+    DBWAreaChanged(DRCdef, &box, DBW_ALLWINDOWS, &DBAllButSpaceBits);
+    return DRCErrorCount;
+}
+
+#endif	/* MAGIC_WEB && !MAGIC_WRAPPER */
+
 #ifdef MAGIC_WRAPPER
 
 int

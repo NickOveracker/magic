@@ -42,6 +42,9 @@ export class CanvasDriver {
         this.onCommand = options.onCommand || (() => {});
         this.onFocusWindow = options.onFocusWindow || (() => {});
         this.onMessage = options.onMessage || (() => {});
+        this.onDecorate = options.onDecorate || (() => null);
+        this.onPointer = options.onPointer || (() => {});
+        this.iconTarget = null;
         this.windows = new Map();      // wid -> {fw, canvas, ctx, pointer}
         this.current = null;
         this.color = "#000";
@@ -63,24 +66,36 @@ export class CanvasDriver {
         return [this.desktop.clientWidth, this.desktop.clientHeight];
     }
 
-    createWindow(wid, x, y, width, height, title) {
-        // Outer geometry: the canvas plus title bar and border, kept inside the desktop.
+    // Margins between a window's frame and its canvas: [left, top, right, bottom].
+    chrome(win) {
+        const outer = win.fw.element.getBoundingClientRect(), inner = win.host.getBoundingClientRect();
+        return [inner.left - outer.left, inner.top - outer.top, outer.right - inner.right, outer.bottom - inner.bottom];
+    }
+
+    // Place a window so that its canvas covers (x, y, width, height), kept inside the desktop.
+    placeWindow(win, x, y, width, height) {
+        const [l, t, r, b] = this.chrome(win);
         const [dw, dh] = this.screenSize();
-        let top = y - HEADER_HEIGHT - 1, outerHeight = height + HEADER_HEIGHT + 2;
+        let top = y - t, outerHeight = height + t + b;
         if(top < 0) {
             outerHeight += top;
             top = 0;
         }
         outerHeight = Math.min(outerHeight, dh - top);
-        const left = Math.max(0, x - 1), outerWidth = Math.min(width + 2, dw - left);
+        const left = Math.max(0, x - l), outerWidth = Math.min(width + l + r, dw - left);
+        win.fw.setGeometry(left, top, outerWidth, outerHeight);
+    }
+
+    createWindow(wid, x, y, width, height, title, client) {
         const fw = new FloatingWindow(this.desktop, {
             title,
-            x: left, y: top, width: outerWidth, height: outerHeight,
+            x, y, width, height: height + HEADER_HEIGHT,
             onClose: () => {
-                if(this.windows.size > 1) {
+                const layouts = [...this.windows.values()].filter(w => w.client === "layout");
+                if(win.client !== "layout" || layouts.length > 1) {
                     this.onCommand(wid, "closewindow");
                 } else {
-                    this.onMessage("The last window stays open; Magic needs one to work in.");
+                    this.onMessage("The last layout window stays open; Magic needs one to work in.");
                 }
             },
             onChange: () => this.frameChanged(wid),
@@ -88,10 +103,13 @@ export class CanvasDriver {
         const canvas = document.createElement("canvas");
         canvas.className = "magic-canvas";
         canvas.tabIndex = 0;
-        canvas.setAttribute("aria-label", "Magic layout window");
-        fw.body.appendChild(canvas);
-        const win = {wid, fw, canvas, ctx: null, pointer: null, width: 0, height: 0};
+        canvas.setAttribute("aria-label", `Magic ${client || "layout"} window`);
+        const win = {wid, client, fw, canvas, host: fw.body, ctx: null, pointer: null, width: 0, height: 0};
         this.windows.set(wid, win);
+        // The app may wrap the canvas in menus and toolbars; it returns the element that holds the canvas.
+        win.host = this.onDecorate(win) || fw.body;
+        win.host.appendChild(canvas);
+        this.placeWindow(win, x, y, width, height);
         this.sizeCanvas(win);
         this.listen(win);
         if(this.cursorIndex >= 0) {
@@ -104,7 +122,7 @@ export class CanvasDriver {
                 // Resizing a canvas erases it, even when Magic's frame didn't change.
                 this.module?._magic_web_redraw(wid);
             }
-        }).observe(fw.body);
+        }).observe(win.host);
         // The desktop may have clamped the window; tell Magic where it ended up.
         setTimeout(() => this.frameChanged(wid), 0);
         this.focused = wid;
@@ -112,7 +130,7 @@ export class CanvasDriver {
 
     // Match the canvas's backing store to its displayed size.  Returns true if it changed.
     sizeCanvas(win) {
-        const width = Math.max(1, win.fw.body.clientWidth), height = Math.max(1, win.fw.body.clientHeight);
+        const width = Math.max(1, win.host.clientWidth), height = Math.max(1, win.host.clientHeight);
         const dpr = this.dpr = window.devicePixelRatio || 1;
         if(width === win.width && height === win.height && win.dpr === dpr) {
             return false;
@@ -138,14 +156,15 @@ export class CanvasDriver {
             return;
         }
         this.sizeCanvas(win);
-        const g = win.fw.geometry;
-        this.module._magic_web_configure(wid, g.x + 1, g.y + HEADER_HEIGHT + 1, win.width, win.height);
+        const d = this.desktop.getBoundingClientRect(), h = win.host.getBoundingClientRect();
+        this.module._magic_web_configure(wid, Math.round(h.left - d.left), Math.round(h.top - d.top),
+            win.width, win.height);
     }
 
     configureWindow(wid, x, y, width, height) {
         const win = this.windows.get(wid);
         if(win) {
-            win.fw.setGeometry(x - 1, y - HEADER_HEIGHT - 1, width + 2, height + HEADER_HEIGHT + 2);
+            this.placeWindow(win, x, y, width, height);
             this.sizeCanvas(win);
         }
     }
@@ -175,8 +194,9 @@ export class CanvasDriver {
 
     // ----- Drawing state
 
+    // Negative ids below -1 are toolbar icons (see GrWebLayerIcon); they draw into iconTarget.
     select(wid) {
-        this.current = this.windows.get(wid) || null;
+        this.current = (wid <= -2 ? this.iconTarget : this.windows.get(wid)) || null;
         this.ctx = this.current ? this.current.ctx : null;
     }
 
@@ -401,6 +421,7 @@ export class CanvasDriver {
         canvas.addEventListener("pointercancel", up);
         canvas.addEventListener("pointermove", event => {
             win.pointer = position(event);
+            this.onPointer(win);
         });
         canvas.addEventListener("pointerleave", () => {
             if(!down.size) {

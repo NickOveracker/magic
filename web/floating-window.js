@@ -30,6 +30,7 @@ const STYLES = `
 export const HEADER_HEIGHT = 30;
 
 let topZ = 10;
+const TOPMOST = 100000;
 
 export class FloatingWindow {
     constructor(desktop, options) {
@@ -43,6 +44,8 @@ export class FloatingWindow {
         this.onClose = options.onClose || null;
         this.onChange = options.onChange || null;
         this.onCollapse = options.onCollapse || null;
+        // Tool windows (the managers) stay above the ordinary windows, like separate top-level windows.
+        this.topmost = Boolean(options.topmost);
         this.min = {width: 160, height: 100};
 
         const el = this.element = document.createElement("section");
@@ -71,7 +74,7 @@ export class FloatingWindow {
     }
 
     raise() {
-        this.element.style.zIndex = ++topZ;
+        this.element.style.zIndex = ++topZ + (this.topmost ? TOPMOST : 0);
     }
 
     lower() {

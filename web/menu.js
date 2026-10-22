@@ -1,0 +1,191 @@
+// Drop-down menus for the layout windows' menu bars, like Tk's menubuttons.
+//
+// A menu is a list of items:
+//   {label, action}                  a command
+//   {label, checked: () => bool, action}   a check button
+//   {label, disabled: true, title}   shown greyed out, with a reason
+//   "-"                              a separator
+// Items may also be a function returning such a list, so that a menu can be
+// built afresh every time it opens (for lists of styles, windows and so on).
+//
+// Keyboard: Enter, space or Down opens a menu; arrows move; Left/Right switch
+// to the neighbouring menu; Escape closes.
+
+const STYLES = `
+.mb-bar { display: flex; flex-wrap: wrap; gap: 1px; }
+.mb-button { font: 12px system-ui, sans-serif; color: inherit; background: none; border: 1px solid transparent;
+  border-radius: 4px; padding: 1px 7px; min-height: 22px; cursor: pointer; }
+.mb-button:hover, .mb-button[aria-expanded="true"] { background: var(--head); border-color: var(--rule); }
+.mb-menu { position: fixed; z-index: 2000000; min-width: 180px; max-height: 80vh; overflow: auto; margin: 0;
+  padding: 4px 0; list-style: none; background: var(--panel); color: var(--fg); border: 1px solid var(--rule);
+  border-radius: 6px; box-shadow: 0 8px 24px rgba(0,0,0,.25); font: 13px system-ui, sans-serif; }
+.mb-item { display: flex; align-items: center; gap: 8px; padding: 4px 14px 4px 8px; cursor: default; white-space: nowrap; }
+.mb-item:focus { outline: none; background: var(--accent); color: #fff; }
+.mb-item[aria-disabled="true"] { color: var(--muted); }
+.mb-item[aria-disabled="true"]:focus { background: var(--rule); color: var(--muted); }
+.mb-check { width: 1em; text-align: center; }
+.mb-sep { height: 1px; margin: 4px 0; background: var(--rule); }
+`;
+
+let openMenu = null;     // {button, list}
+
+function addStyles() {
+    if(!document.getElementById("mb-styles")) {
+        const style = document.createElement("style");
+        style.id = "mb-styles";
+        style.textContent = STYLES;
+        document.head.appendChild(style);
+    }
+}
+
+export function closeMenus() {
+    if(openMenu) {
+        openMenu.list.remove();
+        openMenu.button.setAttribute("aria-expanded", "false");
+        openMenu = null;
+    }
+}
+
+document.addEventListener("pointerdown", event => {
+    if(openMenu && !openMenu.list.contains(event.target) && event.target !== openMenu.button) {
+        closeMenus();
+    }
+}, true);
+window.addEventListener("blur", closeMenus);
+document.addEventListener("keydown", event => {
+    if(event.key === "Escape" && openMenu) {
+        const button = openMenu.button;
+        closeMenus();
+        button.focus({preventScroll: true});
+    }
+});
+window.addEventListener("resize", closeMenus);
+
+// A menu bar: menus is [[title, items], ...].  Returns the bar element.
+export function menuBar(menus, label) {
+    addStyles();
+    const bar = document.createElement("div");
+    bar.className = "mb-bar";
+    bar.setAttribute("role", "menubar");
+    bar.setAttribute("aria-label", label);
+    const buttons = menus.map(([title, items]) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "mb-button";
+        button.textContent = title;
+        button.setAttribute("aria-haspopup", "menu");
+        button.setAttribute("aria-expanded", "false");
+        button.addEventListener("click", () => {
+            if(openMenu && openMenu.button === button) {
+                // A menu that opened as the pointer slid onto it stays open when clicked.
+                if(openMenu.byHover) {
+                    openMenu.byHover = false;
+                } else {
+                    closeMenus();
+                }
+            } else {
+                open(button, items, false);
+            }
+        });
+        button.addEventListener("pointerenter", () => {
+            if(openMenu && openMenu.button !== button && bar.contains(openMenu.button)) {
+                open(button, items, false);
+                openMenu.byHover = true;
+            }
+        });
+        button.addEventListener("keydown", event => {
+            if(event.key === "ArrowDown") {
+                event.preventDefault();
+                open(button, items, true);
+            }
+        });
+        bar.appendChild(button);
+        return {button, items};
+    });
+
+    function neighbour(button, step) {
+        const i = buttons.findIndex(b => b.button === button);
+        const next = buttons[(i + step + buttons.length) % buttons.length];
+        open(next.button, next.items, true);
+    }
+
+    function open(button, items, focusFirst) {
+        closeMenus();
+        const list = document.createElement("ul");
+        list.className = "mb-menu";
+        list.setAttribute("role", "menu");
+        list.setAttribute("aria-label", button.textContent);
+        for(const item of typeof items === "function" ? items() : items) {
+            const li = document.createElement("li");
+            if(item === "-") {
+                li.className = "mb-sep";
+                li.setAttribute("role", "separator");
+                list.appendChild(li);
+                continue;
+            }
+            li.className = "mb-item";
+            li.tabIndex = -1;
+            const checked = item.checked ? Boolean(item.checked()) : null;
+            li.setAttribute("role", checked === null ? "menuitem" : "menuitemcheckbox");
+            if(checked !== null) {
+                li.setAttribute("aria-checked", String(checked));
+            }
+            li.innerHTML = '<span class="mb-check" aria-hidden="true"></span><span></span>';
+            li.firstChild.textContent = checked ? "✓" : "";
+            li.lastChild.textContent = item.label;
+            if(item.disabled) {
+                li.setAttribute("aria-disabled", "true");
+            }
+            if(item.title) {
+                li.title = item.title;
+            }
+            const choose = () => {
+                if(item.disabled) {
+                    return;
+                }
+                closeMenus();
+                button.focus({preventScroll: true});
+                item.action();
+            };
+            li.addEventListener("click", choose);
+            li.addEventListener("pointermove", () => li.focus({preventScroll: true}));
+            li.addEventListener("keydown", event => {
+                if(event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    choose();
+                }
+            });
+            list.appendChild(li);
+        }
+        list.addEventListener("keydown", event => {
+            const items = [...list.querySelectorAll(".mb-item")];
+            const i = items.indexOf(document.activeElement);
+            if(event.key === "ArrowDown" || event.key === "ArrowUp") {
+                event.preventDefault();
+                const step = event.key === "ArrowDown" ? 1 : -1;
+                items[(i + step + items.length) % items.length]?.focus();
+            } else if(event.key === "Escape") {
+                event.preventDefault();
+                closeMenus();
+                button.focus();
+            } else if(event.key === "ArrowLeft" || event.key === "ArrowRight") {
+                event.preventDefault();
+                neighbour(button, event.key === "ArrowRight" ? 1 : -1);
+            } else if(event.key === "Tab") {
+                closeMenus();
+            }
+        });
+        document.body.appendChild(list);
+        const r = button.getBoundingClientRect();
+        const width = list.offsetWidth, height = list.offsetHeight;
+        list.style.left = Math.max(4, Math.min(r.left, window.innerWidth - width - 4)) + "px";
+        list.style.top = (r.bottom + height + 4 <= window.innerHeight ? r.bottom + 2 : Math.max(4, r.top - height - 2)) + "px";
+        button.setAttribute("aria-expanded", "true");
+        openMenu = {button, list, byHover: false};
+        if(focusFirst) {
+            list.querySelector(".mb-item")?.focus();
+        }
+    }
+
+    return bar;
+}

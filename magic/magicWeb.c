@@ -13,12 +13,19 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
+#include <string.h>
 
 #include <emscripten/emscripten.h>
 
 #include "utils/main.h"
 #include "utils/magic.h"
 #include "utils/geometry.h"
+#include "utils/utils.h"
+#include "tiles/tile.h"
+#include "utils/hash.h"
+#include "utils/malloc.h"
+#include "database/database.h"
 #include "textio/textio.h"
 #include "textio/txcommands.h"
 #include "windows/windows.h"
@@ -26,13 +33,31 @@
 #include "graphics/graphics.h"
 #include "dbwind/dbwind.h"
 #include "drc/drc.h"
+#include "commands/commands.h"
+#include "cif/CIFint.h"
+#include "cif/CIFread.h"
+#include "extract/extractInt.h"
 
 #ifndef MAGIC_WRAPPER
 
 extern void GrWebScreenSize(int width, int height);
+extern bool GrWebLayerIcon();
+extern int DRCWebListAll();
+extern CIFReadKeep *cifReadStyleList;
+extern ExtKeep *ExtAllStyles;
 
 static bool magicWebReady = FALSE;
 static double magicWebDeadline = 0.0;	/* For MagicWebShouldYield() */
+
+/* Emscripten passes output to the page a line at a time; push out any
+ * partial line (prompts, "tech layers" lists) at the end of each command.
+ */
+static void
+magicWebFlush(void)
+{
+    fflush(stdout);
+    fflush(stderr);
+}
 
 /* Called from the DRC loop: TRUE when the current time slice is used up. */
 bool
@@ -131,8 +156,12 @@ magic_web_key(int wid, int code, int x, int y)
 EMSCRIPTEN_KEEPALIVE int
 magic_web_pump(void)
 {
+    int count;
+
     if (!magicWebReady) return 0;
-    return TxDispatchPending();
+    count = TxDispatchPending();
+    magicWebFlush();
+    return count;
 }
 
 /* Run a command line as if typed after ':' in window wid (negative: the
@@ -150,6 +179,7 @@ magic_web_command(int wid, const char *command)
 	TxSetPoint((w->w_screenArea.r_xbot + w->w_screenArea.r_xtop) / 2,
 		(w->w_screenArea.r_ybot + w->w_screenArea.r_ytop) / 2, w->w_wid);
     result = TxDispatchString(command, FALSE);
+    magicWebFlush();
     return result;
 }
 
@@ -216,6 +246,278 @@ EMSCRIPTEN_KEEPALIVE int
 magic_web_drc_busy(void)
 {
     return (magicWebReady && DRCHasWork) ? 1 : 0;
+}
+
+/* ------------------------------------------------------------------------
+ * Queries for the page's menus, toolbar and managers.  Each returns text
+ * in a buffer that stays valid until the next query: one record per line,
+ * fields separated by tabs.
+ * ------------------------------------------------------------------------
+ */
+
+static char *webText = NULL;
+static int webTextLen = 0, webTextSize = 0;
+
+static void
+webReset(void)
+{
+    if (webText == NULL)
+    {
+	webTextSize = 4096;
+	webText = (char *)mallocMagic(webTextSize);
+    }
+    webTextLen = 0;
+    webText[0] = '\0';
+}
+
+static void
+webAppend(const char *fmt, ...)
+{
+    va_list args;
+    int n;
+
+    va_start(args, fmt);
+    n = vsnprintf(NULL, 0, fmt, args);
+    va_end(args);
+    if (webTextLen + n + 1 > webTextSize)
+    {
+	char *bigger;
+	while (webTextLen + n + 1 > webTextSize) webTextSize *= 2;
+	bigger = (char *)mallocMagic(webTextSize);
+	memcpy(bigger, webText, webTextLen + 1);
+	freeMagic(webText);
+	webText = bigger;
+    }
+    va_start(args, fmt);
+    vsnprintf(webText + webTextLen, n + 1, fmt, args);
+    va_end(args);
+    webTextLen += n;
+}
+
+/* A coordinate in the units chosen with the "units" command. */
+static void
+webAppendValue(int value, MagWindow *w, bool isX)
+{
+    webAppend("%s", DBWPrintValue(value, w, isX));
+}
+
+/*
+ * The toolbar's layers: "name<TAB>locked<TAB>visible" per line, first the
+ * special entries errors, labels and subcell, then every paintable layer
+ * in technology order (as "tech layers *" lists them).
+ */
+EMSCRIPTEN_KEEPALIVE const char *
+magic_web_layers(int wid)
+{
+    MagWindow *w = magicWebWindow(wid);
+    DBWclientRec *crec = NULL;
+    TileType t;
+
+    webReset();
+    if (!magicWebReady) return webText;
+    if (w != NULL && w->w_client == DBWclientID)
+	crec = (DBWclientRec *)w->w_clientData;
+
+    webAppend("errors\t0\t%d\n",
+	    crec ? TTMaskHasType(&crec->dbw_visibleLayers, TT_ERROR_P) : 1);
+    webAppend("labels\t0\t%d\n", crec ? ((crec->dbw_flags & DBW_SEELABELS) != 0) : 1);
+    webAppend("subcell\t0\t%d\n", crec ? ((crec->dbw_flags & DBW_SEECELLS) != 0) : 1);
+    for (t = TT_TECHDEPBASE; t < DBNumUserLayers; t++)
+    {
+	if (!TTMaskHasType(&DBAllButSpaceAndDRCBits, t)) continue;
+	if (DBTypeLongNameTbl[t] == NULL) continue;
+	webAppend("%s\t%d\t%d\n", DBTypeLongNameTbl[t], LockedLayer(t) ? 1 : 0,
+		crec ? TTMaskHasType(&crec->dbw_visibleLayers, t) : 1);
+    }
+    return webText;
+}
+
+/* Draw a toolbar icon; see GrWebLayerIcon in graphics/grWeb.c. */
+EMSCRIPTEN_KEEPALIVE int
+magic_web_layer_icon(int icon, const char *name, int size, int pale)
+{
+    if (!magicWebReady) return 0;
+    return GrWebLayerIcon(icon, (char *)name, size, pale ? TRUE : FALSE) ? 1 : 0;
+}
+
+/*
+ * The title bar of window wid:
+ *	caption	<window caption>
+ *	tool	<current tool>
+ *	tech	<technology>
+ *	box	<llx> <lly> <urx> <ury>	(only if the box is in this window)
+ *	boxi	the same in internal units
+ *	view	the visible area, in internal units
+ *	selcell	<cell> of the selected instance, if any
+ */
+EMSCRIPTEN_KEEPALIVE const char *
+magic_web_status(int wid)
+{
+    MagWindow *w = magicWebWindow(wid);
+    CellDef *boxDef;
+    Rect box;
+
+    webReset();
+    if (!magicWebReady || w == NULL) return webText;
+    webAppend("caption\t%s\n", w->w_caption ? w->w_caption : "");
+    webAppend("tool\t%s\n", DBWGetButtonHandler() ? DBWGetButtonHandler() : "");
+    webAppend("tech\t%s\n", DBTechName ? DBTechName : "");
+    if (ToolGetBox(&boxDef, &box) && w->w_client == DBWclientID &&
+	    boxDef == ((CellUse *)w->w_surfaceID)->cu_def)
+    {
+	webAppend("box\t");
+	webAppendValue(box.r_xbot, w, TRUE);
+	webAppend(" ");
+	webAppendValue(box.r_ybot, w, FALSE);
+	webAppend(" ");
+	webAppendValue(box.r_xtop, w, TRUE);
+	webAppend(" ");
+	webAppendValue(box.r_ytop, w, FALSE);
+	webAppend("\nboxi\t%d %d %d %d\n", box.r_xbot, box.r_ybot, box.r_xtop, box.r_ytop);
+    }
+    if (w->w_client == DBWclientID)
+    {
+	CellUse *sel = CmdGetSelectedCell((Transform *)NULL);
+
+	webAppend("view\t%d %d %d %d\n", w->w_surfaceArea.r_xbot, w->w_surfaceArea.r_ybot,
+		w->w_surfaceArea.r_xtop, w->w_surfaceArea.r_ytop);
+	if (sel != NULL) webAppend("selcell\t%s\n", sel->cu_def->cd_name);
+    }
+    return webText;
+}
+
+/*
+ * The layout position under canvas pixel (x, y) of window wid:
+ *	"<ix> <iy><TAB><x> <y>[<TAB><dx> <dy>]"
+ * in internal units, then in display units, then (if the box is in this
+ * window) the offset from the box's lower left corner.
+ */
+EMSCRIPTEN_KEEPALIVE const char *
+magic_web_cursor(int wid, int x, int y)
+{
+    MagWindow *w = magicWebWindow(wid);
+    Point screen, surface;
+    CellDef *boxDef;
+    Rect box;
+
+    webReset();
+    if (!magicWebReady || w == NULL || w->w_client != DBWclientID) return webText;
+    screen.p_x = x;
+    screen.p_y = w->w_allArea.r_ytop - y;
+    WindPointToSurface(w, &screen, &surface, (Rect *)NULL);
+    webAppend("%d %d\t", surface.p_x, surface.p_y);
+    webAppendValue(surface.p_x, w, TRUE);
+    webAppend(" ");
+    webAppendValue(surface.p_y, w, FALSE);
+    if (ToolGetBox(&boxDef, &box) && boxDef == ((CellUse *)w->w_surfaceID)->cu_def)
+    {
+	webAppend("\t");
+	webAppendValue(surface.p_x - box.r_xbot, w, TRUE);
+	webAppend(" ");
+	webAppendValue(surface.p_y - box.r_ybot, w, FALSE);
+    }
+    return webText;
+}
+
+/* Cell hierarchy for the cell manager: "<depth><TAB><cell><TAB><instance>"
+ * per line, depth first, starting from each top-level cell.
+ */
+static int webTreeUse(CellUse *use, ClientData cdata);
+
+static void
+webTreeDef(CellDef *def, int depth)
+{
+    if (depth > 64) return;		/* Guard against runaway recursion */
+    DBCellEnum(def, webTreeUse, INT2CD(depth + 1));
+}
+
+static int
+webTreeUse(CellUse *use, ClientData cdata)
+{
+    int depth = (int)CD2INT(cdata);
+
+    webAppend("%d\t%s\t%s\n", depth, use->cu_def->cd_name,
+	    use->cu_id ? use->cu_id : "");
+    webTreeDef(use->cu_def, depth);
+    return 0;
+}
+
+static int
+webTreeTop(CellDef *def, ClientData cdata)
+{
+    CellUse *parent;
+
+    if (def->cd_flags & CDINTERNAL) return 0;
+    for (parent = def->cd_parents; parent != NULL; parent = parent->cu_nextuse)
+	if (parent->cu_parent != NULL && !(parent->cu_parent->cd_flags & CDINTERNAL))
+	    return 0;
+    webAppend("0\t%s\t\n", def->cd_name);
+    webTreeDef(def, 0);
+    return 0;
+}
+
+EMSCRIPTEN_KEEPALIVE const char *
+magic_web_hierarchy(void)
+{
+    webReset();
+    if (magicWebReady) DBCellSrDefs(0, webTreeTop, (ClientData)NULL);
+    return webText;
+}
+
+/*
+ * Technology settings for the tech manager:
+ *	name, version, description	<text>
+ *	lambda	<internal units> <lambda>
+ *	cifout, cifin, extract, drc	<current style><TAB><style>...
+ */
+EMSCRIPTEN_KEEPALIVE const char *
+magic_web_tech(void)
+{
+    CIFKeep *ck;
+    CIFReadKeep *rk;
+    ExtKeep *ek;
+    DRCKeep *dk;
+
+    webReset();
+    if (!magicWebReady) return webText;
+    webAppend("name\t%s\n", DBTechName ? DBTechName : "");
+    webAppend("version\t%s\n", DBTechVersion ? DBTechVersion : "");
+    webAppend("description\t%s\n", DBTechDescription ? DBTechDescription : "");
+    webAppend("lambda\t%d %d\n", DBLambda[0], DBLambda[1]);
+
+    webAppend("cifout\t%s", CIFCurStyle ? CIFCurStyle->cs_name : "");
+    for (ck = CIFStyleList; ck != NULL; ck = ck->cs_next) webAppend("\t%s", ck->cs_name);
+    webAppend("\ncifin\t%s", cifCurReadStyle ? cifCurReadStyle->crs_name : "");
+    for (rk = cifReadStyleList; rk != NULL; rk = rk->crs_next) webAppend("\t%s", rk->crs_name);
+    webAppend("\nextract\t%s", ExtCurStyle ? ExtCurStyle->exts_name : "");
+    for (ek = ExtAllStyles; ek != NULL; ek = ek->exts_next) webAppend("\t%s", ek->exts_name);
+    webAppend("\ndrc\t%s", DRCCurStyle ? DRCCurStyle->ds_name : "");
+    for (dk = DRCStyleList; dk != NULL; dk = dk->ds_next) webAppend("\t%s", dk->ds_name);
+    webAppend("\n");
+    return webText;
+}
+
+/* DRC errors in the cell shown in window wid, for the DRC manager:
+ * "<rule><TAB><llx> <lly> <urx> <ury>" per line, in internal units.
+ */
+static void
+webDrcError(char *rule, Rect *r)
+{
+    webAppend("%s\t%d %d %d %d\n", rule, r->r_xbot, r->r_ybot, r->r_xtop, r->r_ytop);
+}
+
+EMSCRIPTEN_KEEPALIVE const char *
+magic_web_drc_list(int wid)
+{
+    MagWindow *w = magicWebWindow(wid);
+    CellUse *use;
+
+    webReset();
+    if (!magicWebReady || w == NULL || w->w_client != DBWclientID) return webText;
+    use = (CellUse *)w->w_surfaceID;
+    DRCWebListAll(use, &use->cu_def->cd_bbox, webDrcError);
+    WindUpdate();
+    return webText;
 }
 
 #endif /* !MAGIC_WRAPPER */

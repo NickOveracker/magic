@@ -25,6 +25,9 @@ HTML canvas inside a movable, resizable, collapsible window on the page.
 | `utils/macros.c` | X11-style extended macros (`XK_Left`, `Control_XK_...`, scroll wheel) without Xlib. |
 | `web/canvas-driver.js` | Canvas drawing, stipples, cursors; mouse, wheel and keys translated to X11 keysyms. |
 | `web/archive.js` | .zip / .tar / .tar.gz reading and .tar.gz writing with the browser's (De)CompressionStream. |
+| `web/wrapper.js` | The Tcl/Tk wrapper's per-window GUI (`tcltk/wrapper.tcl`, `toolbar.tcl`): File, Edit, Cell, Window, Layers, Drc and Options menus, the DRC switch, caption and coordinates, the layer toolbar and the window command entry. |
+| `web/managers.js` | The cell, library, technology and DRC managers from the Options menu (`cellmgr.tcl`, `libmgr.tcl`, `drcmgr.tcl`). |
+| `web/menu.js`, `web/dialog.js` | Drop-down menus and the prompt dialogs. |
 | `web/app.js` | Page logic: console, command line, project loading, download, demos. |
 
 ## Using it
@@ -35,8 +38,14 @@ HTML canvas inside a movable, resizable, collapsible window on the page.
 - Open files (.mag, .gds, .tech), a folder, or one .zip/.tar/.tar.gz archive, or drop
   them on the page. The cell no other cell uses is opened. **Download** runs
   `writeall force` and saves the project as .tar.gz.
-- The default demo is a 4x4 multiplier exported from Stixu; `?demo=NAME`
-  picks another file from `demo/`.
+- Each layout window has the Tcl wrapper's menus and layer toolbar. In the
+  toolbar, click shows a layer, right click hides it, middle click (or
+  Alt+click) paints it and Shift+middle erases it; with the pointer on a
+  layer, p, e, s, S, l and u paint, erase, select more or less, lock and
+  unlock. The toolbar order (Layers > Reorder layers) is kept per technology
+  in the browser.
+- The default demo is a mirror full adder exported from Stixu and sized for
+  speed; `?demo=NAME` picks another file from `demo/`.
 
 ## Notes
 
@@ -45,6 +54,9 @@ HTML canvas inside a movable, resizable, collapsible window on the page.
   functions (harmless natively, a trap in WebAssembly). Two such bugs on the
   drawing path are fixed in the source (`dbwind/DBWhlights.c`, netmenu); the
   flag covers the rest.
+- The magic_web_* queries in `magic/magicWeb.c` (layers, status, cursor,
+  hierarchy, tech, DRC list) replace what the Tcl wrapper reads through Tcl.
+- Not available: the 3D window (needs OpenGL) and anything that runs Tcl.
 - Interactive macros (`imacro`) and commands that ask a question on the
   terminal fall back to the browser's prompt dialog.
 - Files live in Emscripten's in-memory file system until downloaded.
