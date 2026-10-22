@@ -88,7 +88,14 @@ export function menuBar(menus, label, options = {}) {
                 if(openMenu.byHover) {
                     openMenu.byHover = false;
                 } else {
+                    const done = openMenu.done;
                     closeMenus();
+                    // Closed with the mouse: give the keyboard back, as after a choice.
+                    if(event.detail > 0 && options.onDone) {
+                        options.onDone();
+                    } else if(done) {
+                        done();
+                    }
                 }
             } else {
                 open(button, items, false, event.detail > 0);

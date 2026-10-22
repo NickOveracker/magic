@@ -44,6 +44,8 @@ export class CanvasDriver {
         this.onMessage = options.onMessage || (() => {});
         this.onDecorate = options.onDecorate || (() => null);
         this.onPointer = options.onPointer || (() => {});
+        // Escape first closes whatever the page has open (help, a menu); returns true if it did.
+        this.onEscape = options.onEscape || (() => false);
         this.iconTarget = null;
         this.windows = new Map();      // wid -> {fw, canvas, ctx, pointer}
         this.current = null;
@@ -452,6 +454,10 @@ export class CanvasDriver {
 
     // A key for window win (its canvas has focus, or nothing else does).
     keyDown(win, event) {
+        if(event.key === "Escape" && this.onEscape()) {
+            event.preventDefault();
+            return;
+        }
         const code = this.keyCode(event);
         if(code === null || !this.module) {
             return;

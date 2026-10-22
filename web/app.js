@@ -5,7 +5,7 @@ import createMagic from "./magic.js";
 import {CanvasDriver} from "./canvas-driver.js";
 import {readArchive, isArchive, stripCommonFolder, cleanPath, writeTarGz} from "./archive.js";
 import {Gui} from "./wrapper.js";
-import {menuBar} from "./menu.js";
+import {menuBar, closeMenus} from "./menu.js";
 import {setHomeFocus} from "./dialog.js";
 import {diskSupported, DiskStore, BrowserStore, recentProjects, reopen, forget} from "./storage.js";
 
@@ -742,9 +742,16 @@ document.addEventListener("pointerdown", event => {
     }
 }, true);
 document.addEventListener("keydown", event => {
-    if(event.key === "Escape" && !$("#help").hidden) {
+    if(event.key === "Escape" && !event.defaultPrevented && !$("#help").hidden) {
+        event.preventDefault();
+        // Opened from the keyboard: back to the Help button; otherwise to the layout.
+        const fromKeyboard = document.activeElement?.closest?.("#help, #help-toggle");
         showHelp(false);
-        $("#help-toggle").focus();
+        if(fromKeyboard) {
+            $("#help-toggle").focus();
+        } else {
+            refocusCanvas();
+        }
     }
 });
 
@@ -784,6 +791,17 @@ const driver = new CanvasDriver(desktop, {
     onMessage: message => print(message, "info"),
     onDecorate: win => gui.decorate(win),
     onPointer: win => gui.pointerMoved(win),
+    onEscape: () => {
+        if(!$("#help").hidden) {
+            showHelp(false);
+            return true;
+        }
+        if(document.querySelector(".mb-menu")) {
+            closeMenus();
+            return true;
+        }
+        return false;
+    },
 });
 
 async function start() {
