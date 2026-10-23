@@ -12,13 +12,126 @@ import {diskSupported, DiskStore, BrowserStore, recentProjects, reopen, forget} 
 import {Simulation} from "./simulation.js";
 import {Verification} from "./lvs.js";
 import {topEdgeResizer} from "./floating-window.js";
+import {t, register, applyStatic, languageButton, onLanguageChange} from "./i18n.js";
 
 const $ = selector => document.querySelector(selector);
 const desktop = $("#desktop");
-topEdgeResizer($("#console"), desktop, {label: "Resize the console"});
 const log = $("#log");
 const commandInput = $("#command");
 const status = $("#status");
+
+// The page's text in Japanese (i18n.js); the English is in the code.  Magic's own output,
+// commands, cell, layer and file names stay as they are.
+register({
+    // Menus and windows
+    "Page menu": "ページメニュー",
+    // The page (index.html)
+    "VLSI layout · WebAssembly": "VLSI レイアウト · WebAssembly",
+    "Help": "ヘルプ",
+    "Loading…": "読み込み中…",
+    "Support on Ko-fi": "Ko-fi で支援",
+    "Magic windows": "Magic のウィンドウ",
+    "Magic console": "Magic のコンソール",
+    "Show or hide the console": "コンソールの表示／非表示",
+    "Resize the console": "コンソールのサイズを変更",
+    "Project": "プロジェクト",
+    "Demos": "デモ",
+    "About": "情報",
+    "Open files…": "ファイルを開く…",
+    "Open folder (copy)…": "フォルダーを開く（コピー）…",
+    "Add files to project…": "プロジェクトにファイルを追加…",
+    "Copy files into this project, for example a schematic netlist for lvs or an IRSIM command file":
+        "このプロジェクトにファイルをコピーします（lvs 用の回路図のネットリスト、IRSIM のコマンドファイルなど）",
+    "Work in a folder on disk…": "ディスク上のフォルダーで作業…",
+    "Open a folder; files Magic writes are saved into it": "フォルダーを開きます。Magic が書き出すファイルはそこに保存されます",
+    "Save project to a folder on disk…": "プロジェクトをディスク上のフォルダーに保存…",
+    "Copy this project into a folder and keep working there": "このプロジェクトをフォルダーにコピーし、そこで作業を続けます",
+    "Keep project in browser storage": "プロジェクトをブラウザーのストレージに保存",
+    "Saves into this browser (private to this site) and keeps it there":
+        "このブラウザー内（このサイト専用）に保存し、以後もそこに保存します",
+    "Needs Chrome, Edge or another Chromium browser (the File System Access API)":
+        "Chrome、Edge などの Chromium 系ブラウザーが必要です（File System Access API）",
+    "Reopen {name} (folder)": "{name} を再び開く（フォルダー）",
+    "Reopen {name} (browser storage)": "{name} を再び開く（ブラウザーのストレージ）",
+    "Forget recent projects…": "最近のプロジェクトを消去…",
+    "Forget the recent projects? Folders on disk are not touched.":
+        "最近のプロジェクトの一覧を消去しますか？ディスク上のフォルダーには手を加えません。",
+    "Forget the recent projects? This deletes {names} from browser storage. Folders on disk are not touched.":
+        "最近のプロジェクトの一覧を消去しますか？ブラウザーのストレージから {names} を削除します。ディスク上のフォルダーには手を加えません。",
+    "Download project (.tar.gz)": "プロジェクトをダウンロード（.tar.gz）",
+    "Mirror full adder, sized for speed (default)": "ミラー型全加算器、速度重視のサイズ（既定）",
+    "2-bit adder block, sized for speed": "2 ビット加算器ブロック、速度重視のサイズ",
+    "4×4 multiplier, sized for speed": "4×4 乗算器、速度重視のサイズ",
+    "4×4 multiplier": "4×4 乗算器",
+    "2-bit adder block": "2 ビット加算器ブロック",
+    "Mirror full adder": "ミラー型全加算器",
+    "C-element": "C 素子",
+    "Inverter": "インバーター",
+    "Inverter with an n-well contact (LVS matches its schematic)": "n ウェルコンタクト付きインバーター（LVS で回路図と一致）",
+    "Magic tutorial 11: a 4-bit counter (hierarchy; IRSIM: @ counter.cmd)":
+        "Magic チュートリアル 11：4 ビットカウンター（階層。IRSIM：@ counter.cmd）",
+    "OpenRAM SRAM cells, with their schematics (lvs) and a flip-flop script":
+        "OpenRAM の SRAM セルと、その回路図（lvs）、フリップフロップのスクリプト",
+    "Magic (Open Circuit Design)": "Magic（Open Circuit Design）",
+    "Magic upstream source": "Magic の本家のソース",
+    "IRSIM (Open Circuit Design)": "IRSIM（Open Circuit Design）",
+    "IRSIM upstream source": "IRSIM の本家のソース",
+    "netgen (Open Circuit Design)": "netgen（Open Circuit Design）",
+    "netgen upstream source": "netgen の本家のソース",
+    "Magic license": "Magic のライセンス",
+    "Web build license (GPL 2 or later)": "ウェブ版のライセンス（GPL 2 以降）",
+    "IRSIM license (GPL 2)": "IRSIM のライセンス（GPL 2）",
+    "netgen license (GPL)": "netgen のライセンス（GPL）",
+    "Tcl license (in netgen)": "Tcl のライセンス（netgen に含まれる）",
+    "Emscripten runtime license (MIT)": "Emscripten ランタイムのライセンス（MIT）",
+    "This web app's source": "このウェブアプリのソース",
+    "IRSIM web app's source": "IRSIM ウェブアプリのソース",
+    "netgen web app's source": "netgen ウェブアプリのソース",
+    // The console and status
+    "Magic command, e.g. drc count, extract all, paint m1, irsim, lvs":
+        "Magic のコマンド（例：drc count, extract all, paint m1, irsim, lvs）",
+    "IRSIM command (h A, s, ana A Y, d A) · . back to Magic · q quits IRSIM":
+        "IRSIM のコマンド（h A, s, ana A Y, d A） · . で Magic に戻る · q で IRSIM を終了",
+    "Checking design rules…": "デザインルールを検査中…",
+    "Ready": "準備完了",
+    " · not saved to {where}!": " · {where} に保存できていません！",
+    " · kept in {where}": " · {where} に保存中",
+    " · in memory only": " · メモリ上のみ",
+    " · IRSIM prompt": " · IRSIM プロンプト",
+    " · IRSIM running": " · IRSIM 実行中",
+    "(nothing loaded)": "（何も読み込まれていません）",
+    "Stopped": "停止",
+    "Loading Magic…": "Magic を読み込み中…",
+    "Loading {name}…": "{name} を読み込み中…",
+    "Reading {where}…": "{where} を読み込み中…",
+    "Magic stopped: {why}. Reload the page to start again.": "Magic が停止しました：{why}。もう一度始めるには、ページを再読み込みしてください。",
+    "Magic failed to start": "Magic を起動できませんでした",
+    "Magic keeps running in the browser; to start again, load a project or reload the page.":
+        "Magic はブラウザー内で動き続けます。やり直すには、プロジェクトを読み込むか、ページを再読み込みしてください。",
+    "Discard unsaved changes in {cells}?": "{cells} の保存していない変更を破棄しますか？",
+    "No files to load.": "読み込むファイルがありません。",
+    "Loaded 1 file into {root}": "1 個のファイルを {root} に読み込みました",
+    "Loaded {n} files into {root}": "{n} 個のファイルを {root} に読み込みました",
+    'This build includes the scmos technology only; "{tech}" cells may not load. Add the .tech file to the project to use it.':
+        "このビルドに含まれるテクノロジーは scmos だけです。「{tech}」のセルは読み込めないかもしれません。使うには .tech ファイルをプロジェクトに追加してください。",
+    "The folder has no .mag or .gds files yet; Magic's saves will go into it.":
+        "このフォルダーにはまだ .mag や .gds ファイルがありません。Magic が保存するファイルはここに入ります。",
+    "No .mag or .gds file found in the project.": "プロジェクトに .mag や .gds ファイルが見つかりません。",
+    "Saved 1 file to {name}": "1 個のファイルを {name} に保存しました",
+    "Saved {n} files to {name}": "{n} 個のファイルを {name} に保存しました",
+    "Added {files} to {where}": "{files} を {where} に追加しました",
+    "Saved {files} to {where}": "{files} を {where} に保存しました",
+    "Couldn't save to {where}: {why}": "{where} に保存できませんでした：{why}",
+    "Working in {where}: Magic's saves go there.": "{where} で作業しています。Magic が保存するファイルはそこに保存されます。",
+    "{path} was not written.": "{path} は書き出されていません。",
+    "Drop files, a folder, or a .zip / .tar.gz to open it": "ファイル、フォルダー、または .zip / .tar.gz をドロップすると開きます",
+    "Magic 8.3, Copyright (C) 1985, 1990 Regents of the University of California, under Magic's licence; this web build's new code is under the GNU General Public License, version 2 or later, and the built program as a whole is distributed under it.":
+        "Magic 8.3、Copyright (C) 1985, 1990 Regents of the University of California。Magic のライセンスのもとにあります。このウェブ版で新たに書かれたコードは GNU 一般公衆利用許諾書（GPL）第 2 版以降のもとにあり、ビルドしたプログラム全体はその条件のもとで頒布されています。",
+    "It comes with ABSOLUTELY NO WARRANTY. It is free software: you may redistribute it under these terms; About shows the licences.":
+        "このプログラムは完全に無保証です。このプログラムはフリーソフトウェアであり、これらの条件のもとで再頒布できます。ライセンスは「情報」にあります。",
+});
+
+topEdgeResizer($("#console"), desktop, {label: "Resize the console"});
 
 const DEMOS = {
     full_adder_path: "Mirror full adder, sized for speed (default)",
@@ -42,6 +155,7 @@ const FOLDER_DEMOS = {
 // Each demo comes with its schematic, for lvs.
 const DEMO_SCHEMATIC = name => (name === "inverter_tap" ? "inverter_schematic.spice" : `${name}_schematic.spice`);
 const DEFAULT_DEMO = "full_adder_path";
+const NOTHING = "(nothing loaded)";
 const BUILT_IN_TECHS = ["scmos", "minimum"];
 
 let magic = null;            // The Emscripten module
@@ -101,7 +215,7 @@ function scheduleDrc() {
     }
     drcTimer = setTimeout(function step() {
         const busy = guard(() => magic._magic_web_drc_step(12));
-        setStatus(busy ? "Checking design rules…" : readyText());
+        setStatus(busy ? t("Checking design rules…") : readyText());
         drcTimer = busy ? setTimeout(step, 0) : null;
         if(!busy) {
             gui.scheduleUpdate();
@@ -111,12 +225,12 @@ function scheduleDrc() {
 
 function readyText() {
     if(!project) {
-        return "Ready";
+        return t("Ready");
     }
-    const where = project.store ? (project.syncError ? ` · not saved to ${project.store.label}!` :
-        ` · kept in ${project.store.label}`) : " · in memory only";
-    const sim = typeof simulation !== "undefined" && simulation.running ? (simulation.rsimMode ? " · IRSIM prompt" : " · IRSIM running") : "";
-    return `${project.name}: ${project.top}${where}${sim}`;
+    const where = project.store ? t(project.syncError ? " · not saved to {where}!" : " · kept in {where}", {where: project.store.label}) :
+        t(" · in memory only");
+    const sim = typeof simulation !== "undefined" && simulation.running ? t(simulation.rsimMode ? " · IRSIM prompt" : " · IRSIM running") : "";
+    return `${project.name}: ${project.top === NOTHING ? t(NOTHING) : project.top}${where}${sim}`;
 }
 
 function guard(fn) {
@@ -130,8 +244,8 @@ function guard(fn) {
 
 function fatal(error) {
     console.error(error);
-    print(`Magic stopped: ${error.message || error}. Reload the page to start again.`, "error");
-    setStatus("Stopped");
+    print(t("Magic stopped: {why}. Reload the page to start again.", {why: error.message || error}), "error");
+    setStatus(t("Stopped"));
     magic = null;
 }
 
@@ -142,7 +256,7 @@ function runIn(wid, command, quiet) {
     // prefix of a command name, so q, qu and qui are quit too.
     if(/^\s*(q(u(it?)?)?|exit)(\s|;|$)/.test(command)) {
         print(": " + command, "command");
-        print("Magic keeps running in the browser; to start again, load a project or reload the page.", "info");
+        print(t("Magic keeps running in the browser; to start again, load a project or reload the page."), "info");
         return 0;
     }
     const handled = magic && (simulation.frontEnd(wid, command) || verification.frontEnd(wid, command));
@@ -267,7 +381,7 @@ function cellNames(which) {
 // Returns false if the user wants to keep unsaved changes.
 function unloadAll() {
     const modified = cellNames("modified");
-    if(modified.length && !window.confirm(`Discard unsaved changes in ${modified.join(", ")}?`)) {
+    if(modified.length && !window.confirm(t("Discard unsaved changes in {cells}?", {cells: modified.join(", ")}))) {
         return false;
     }
     run("load", true);
@@ -280,7 +394,7 @@ function unloadAll() {
 async function loadProject(name, files, store = null) {
     files = store ? files.filter(f => f.path) : stripCommonFolder(files.filter(f => f.path));
     if(!files.length && !store) {
-        print("No files to load.", "error");
+        print(t("No files to load."), "error");
         return false;
     }
     name = name.replace(/\.(zip|tar|tgz|tar\.gz|mag)$/i, "").replace(/[^\w.-]+/g, "_") || "project";
@@ -294,7 +408,7 @@ async function loadProject(name, files, store = null) {
         magic.FS.writeFile(root + "/" + file.path, file.data);
     }
     magic.FS.chdir(root);
-    print(`Loaded ${files.length} file${files.length === 1 ? "" : "s"} into ${root}`, "info");
+    print(t(files.length === 1 ? "Loaded 1 file into {root}" : "Loaded {n} files into {root}", {n: files.length, root}), "info");
 
     // Technology: the project's own .tech file, else the one its cells name.
     const techFile = files.find(f => /\.tech$/i.test(f.path));
@@ -302,8 +416,8 @@ async function loadProject(name, files, store = null) {
     const topFile = top && files.find(f => f.path === top + ".mag");
     const tech = techFile ? techFile.path : (topFile && techOf(topFile)) || "scmos";
     if(!techFile && !BUILT_IN_TECHS.includes(tech)) {
-        print(`This build includes the scmos technology only; "${tech}" cells may not load. ` +
-            "Add the .tech file to the project to use it.", "error");
+        print(t('This build includes the scmos technology only; "{tech}" cells may not load. ' +
+            "Add the .tech file to the project to use it.", {tech}), "error");
     }
     if(techFile || tech !== currentTech) {
         run(`tech load ${tech} -noprompt`);
@@ -326,9 +440,9 @@ async function loadProject(name, files, store = null) {
         }
         project = {name, root, top: cell || gds.path};
     } else {
-        print(store ? "The folder has no .mag or .gds files yet; Magic's saves will go into it." :
-            "No .mag or .gds file found in the project.", store ? "info" : "error");
-        project = {name, root, top: "(nothing loaded)"};
+        print(t(store ? "The folder has no .mag or .gds files yet; Magic's saves will go into it." :
+            "No .mag or .gds file found in the project."), store ? "info" : "error");
+        project = {name, root, top: NOTHING};
     }
     project.store = store;
     project.synced = fileTimes(root);
@@ -341,7 +455,7 @@ async function loadProject(name, files, store = null) {
 }
 
 function updateTitle() {
-    document.title = project ? `${project.top} · Magic` : "Magic";
+    document.title = project ? `${project.top === NOTHING ? t(NOTHING) : project.top} · Magic` : "Magic";
 }
 
 // Files from <input type=file>, either picked one by one or as a folder.
@@ -358,7 +472,7 @@ async function openFiles(fileList, folderName) {
         const list = Array.from(fileList);
         if(list.length === 1 && isArchive(list[0].name)) {
             const archive = list[0];
-            setStatus(`Reading ${archive.name}…`);
+            setStatus(t("Reading {where}…", {where: archive.name}));
             const files = await readArchive(archive.name, new Uint8Array(await archive.arrayBuffer()));
             await loadProject(archive.name, files);
             return;
@@ -416,7 +530,7 @@ async function download() {
     const blob = new Blob([await writeTarGz(files.map(f => ({path: project.name + "/" + f.path, data: f.data})))],
         {type: "application/gzip"});
     saveBlob(project.name + ".tar.gz", blob);
-    print(`Saved ${files.length} file${files.length === 1 ? "" : "s"} to ${project.name}.tar.gz`, "info");
+    print(t(files.length === 1 ? "Saved 1 file to {name}" : "Saved {n} files to {name}", {n: files.length, name: project.name + ".tar.gz"}), "info");
 }
 
 // Files of the current project, relative to its folder.
@@ -455,7 +569,7 @@ async function addToProject(files) {
         magic.FS.writeFile(project.root + "/" + path, new Uint8Array(await file.arrayBuffer()));
         added.push(path);
     }
-    print(`Added ${added.join(", ")} to ${project.root}`, "info");
+    print(t("Added {files} to {where}", {files: added.join(", "), where: project.root}), "info");
     return added;
 }
 
@@ -512,11 +626,11 @@ async function syncProject() {
         }
         current.syncError = null;
         if(written.length) {
-            print(`Saved ${written.join(", ")} to ${current.store.label}`, "info");
+            print(t("Saved {files} to {where}", {files: written.join(", "), where: current.store.label}), "info");
         }
     } catch(error) {
         current.syncError = error;
-        print(`Couldn't save to ${current.store.label}: ${error.message || error}`, "error");
+        print(t("Couldn't save to {where}: {why}", {where: current.store.label, why: error.message || error}), "error");
     } finally {
         syncing = false;
         if(current === project) {
@@ -536,10 +650,10 @@ async function refreshRecent() {
 }
 
 async function openStore(store) {
-    setStatus(`Reading ${store.label}…`);
+    setStatus(t("Reading {where}…", {where: store.label}));
     const files = await store.readAll();
     if(await loadProject(store.name, files, store)) {
-        print(`Working in ${store.label}: Magic's saves go there.`, "info");
+        print(t("Working in {where}: Magic's saves go there.", {where: store.label}), "info");
     }
     refreshRecent();
 }
@@ -591,13 +705,14 @@ function projectMenu() {
     if(recent.length) {
         items.push("-");
         for(const entry of recent.slice(0, 8)) {
-            items.push({label: `Reopen ${entry.name} (${entry.kind === "disk" ? "folder" : "browser storage"})`,
+            items.push({label: t(entry.kind === "disk" ? "Reopen {name} (folder)" : "Reopen {name} (browser storage)", {name: entry.name}),
                 action: () => attempt(async () => openStore(await reopen(entry)))});
         }
         items.push({label: "Forget recent projects…", action: () => attempt(async () => {
             const stored = recent.filter(e => e.kind === "browser").map(e => e.name);
-            const warning = stored.length ? ` This deletes ${stored.join(", ")} from browser storage.` : "";
-            if(window.confirm(`Forget the recent projects?${warning} Folders on disk are not touched.`)) {
+            const question = stored.length ? t("Forget the recent projects? This deletes {names} from browser storage. Folders on disk are not touched.",
+                {names: stored.join(", ")}) : t("Forget the recent projects? Folders on disk are not touched.");
+            if(window.confirm(question)) {
                 for(const entry of recent) {
                     await forget(entry.id);
                 }
@@ -642,7 +757,7 @@ const appForGui = {
         try {
             saveBlob(path.split("/").pop(), new Blob([magic.FS.readFile(path)]));
         } catch(e) {
-            print(`${path} was not written.`, "error");
+            print(t("{path} was not written.", {path}), "error");
         }
     },
     saveText(name, text) {
@@ -673,9 +788,7 @@ const simulation = new Simulation({
         return m ? [Math.round((+m[1] + +m[3]) / 2), Math.round((+m[2] + +m[4]) / 2)] : [0, 0];
     },
     setMode: on => {
-        $(".command-row label").textContent = on ? "irsim>" : ":";
-        commandInput.placeholder = on ? "IRSIM command (h A, s, ana A Y, d A) · . back to Magic · q quits IRSIM" :
-            "Magic command, e.g. drc count, extract all, paint m1, irsim, lvs";
+        showPrompt(on);
         if(on) {
             openCommandLine();
         }
@@ -699,7 +812,7 @@ const verification = new Verification({
 appForGui.verification = verification;
 
 async function loadDemo(name) {
-    setStatus(`Loading ${name}…`);
+    setStatus(t("Loading {name}…", {name}));
     if(FOLDER_DEMOS[name]) {
         const files = [];
         for(const path of FOLDER_DEMOS[name]) {
@@ -728,6 +841,13 @@ async function loadDemo(name) {
 
 const history = [];
 let historyIndex = 0;
+
+// The prompt and the hint in the command box: Magic's, or IRSIM's at its prompt.
+function showPrompt(irsim) {
+    $(".command-row label").textContent = irsim ? "irsim>" : ":";
+    commandInput.placeholder = irsim ? t("IRSIM command (h A, s, ana A Y, d A) · . back to Magic · q quits IRSIM") :
+        t("Magic command, e.g. drc count, extract all, paint m1, irsim, lvs");
+}
 
 function openCommandLine(wid) {
     if(wid !== undefined && wid !== null) {
@@ -798,7 +918,7 @@ $("#add-files").addEventListener("change", async event => {
             magic.FS.writeFile(`${project.root}/${file.path.split("/").pop()}`, file.data);
             added.push(file.path.split("/").pop());
         }
-        print(`Added ${added.join(", ")} to ${project.name}`, "info");
+        print(t("Added {files} to {where}", {files: added.join(", "), where: project.name}), "info");
         scheduleSync();
     });
 });
@@ -954,16 +1074,32 @@ const driver = new CanvasDriver(desktop, {
 // The notice the GNU General Public License asks for when an interactive program starts:
 // copyright, no warranty, redistribution, and where the licences are.
 function announce() {
-    print("Magic 8.3, Copyright (C) 1985, 1990 Regents of the University of California, under Magic's licence; " +
+    print(t("Magic 8.3, Copyright (C) 1985, 1990 Regents of the University of California, under Magic's licence; " +
         "this web build's new code is under the GNU General Public License, version 2 or later, and the built program as a " +
-        "whole is distributed under it.", "info");
-    print("It comes with ABSOLUTELY NO WARRANTY. It is free software: you may redistribute it under these terms; " +
-        "About shows the licences.", "info");
+        "whole is distributed under it."), "info");
+    print(t("It comes with ABSOLUTELY NO WARRANTY. It is free software: you may redistribute it under these terms; " +
+        "About shows the licences."), "info");
 }
+
+// The page's static text, the language button, and what to redo when the language changes.
+applyStatic();
+$("#help-toggle").before(languageButton());
+const dropText = () => (desktop.dataset.drop = t("Drop files, a folder, or a .zip / .tar.gz to open it"));
+dropText();
+showPrompt(false);
+onLanguageChange(() => {
+    dropText();
+    showPrompt(simulation.rsimMode);
+    if(magic) {
+        setStatus(drcTimer === null ? readyText() : t("Checking design rules…"));
+    }
+    updateTitle();
+    gui.languageChanged();
+});
 
 async function start() {
     announce();
-    setStatus("Loading Magic…");
+    setStatus(t("Loading Magic…"));
     const [module, magicrc] = await Promise.all([
         createMagic({
             magicWeb: driver,
@@ -981,7 +1117,7 @@ async function start() {
     mkdirs("/work/x");
 
     if(magic.ccall("magic_web_init", "number", ["string"], ["scmos"]) !== 0) {
-        throw new Error("Magic failed to start");
+        throw new Error(t("Magic failed to start"));
     }
     refreshRecent();
     const demo = new URLSearchParams(location.search).get("demo") || DEFAULT_DEMO;

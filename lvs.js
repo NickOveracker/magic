@@ -20,6 +20,34 @@
 import {Session} from "./netgen/session.js";
 import {LvsRunner, ResultWindow} from "./netgen/lvs.js";
 import {appUrl, sendProject} from "./handoff.js";
+import {t, register} from "./i18n.js";
+
+// The page's messages about LVS in Japanese (i18n.js); netgen's own output stays as it is.
+register({
+    "Run lvs (or Options > LVS against a Schematic) to compare the layout with its schematic.":
+        "lvs（または「オプション」>「回路図との LVS…」）を実行すると、レイアウトを回路図と比較します。",
+    "lvs compares the cell in the window with a schematic: load a cell first.": "lvs はウィンドウのセルを回路図と比較します。先にセルを読み込んでください。",
+    "Magic didn't write {file}; see the messages above.": "Magic は {file} を書き出しませんでした。上のメッセージを見てください。",
+    "{cell} declares no ports, so netgen can't match its pins with the schematic's. Make the pin labels ports (select the labels, then port make; or port makeall for every label) and run lvs again.":
+        "{cell} にはポートが宣言されていないため、netgen はそのピンを回路図のピンと対応付けられません。ピンのラベルをポートにして（ラベルを選択して port make、またはすべてのラベルに port makeall）、もう一度 lvs を実行してください。",
+    "There is no {path} in the project. Usage: lvs [schematic [cell [setup]]]": "プロジェクトに {path} はありません。使い方：lvs [schematic [cell [setup]]]",
+    "Which schematic? The project has {files}: lvs <schematic> [cell [setup]]": "どの回路図を使いますか？プロジェクトには {files} があります：lvs <schematic> [cell [setup]]",
+    "The project has no schematic netlist to compare {cell} with. Add one (a SPICE file, for example {cell}_schematic.spice) with Project > Add files to project, then run lvs.":
+        "{cell} と比較する回路図のネットリストがプロジェクトにありません。「プロジェクト」>「プロジェクトにファイルを追加」で追加して（SPICE ファイル。例：{cell}_schematic.spice）、lvs を実行してください。",
+    "There is no {path} in the project.": "プロジェクトに {path} はありません。",
+    "Comparing the layout of {cell} with {schematic}{part}{setup}.": "{cell} のレイアウトを {schematic}{part} と比較します{setup}。",
+    ", cell {cell}": " のセル {cell}",
+    " (netgen's built-in scmos setup)": "（netgen 組み込みの scmos 用セットアップ）",
+    " (setup {setup})": "（セットアップ {setup}）",
+    "LVS: {final} (comp.out and comp.json in the project)": "LVS：{final}（comp.out と comp.json をプロジェクトに保存）",
+    "Loading netgen…": "netgen を読み込み中…",
+    "Couldn't load netgen: {why}": "netgen を読み込めませんでした：{why}",
+    "netgen could not start.": "netgen を起動できませんでした。",
+    "netgen, Copyright 1990, 1991, 2002, 2004, 2005 Massimo A. Sivilotti, Caltech, and R. Timothy Edwards, MultiGiG, Inc., changed for this WebAssembly build in 2026. netgen comes with ABSOLUTELY NO WARRANTY. It is free software: you may redistribute it under the terms of the GNU General Public License; About > netgen license shows a copy.":
+        "netgen、Copyright 1990, 1991, 2002, 2004, 2005 Massimo A. Sivilotti, Caltech, and R. Timothy Edwards, MultiGiG, Inc.。2026 年にこの WebAssembly 版のために変更されています。netgen は完全に無保証です。netgen はフリーソフトウェアであり、GNU 一般公衆利用許諾書（GPL）の条件のもとで再頒布できます。その写しは「情報」>「netgen のライセンス」にあります。",
+    "Sending {files} to the netgen app, in a new tab.": "{files} を新しいタブの netgen アプリに送ります。",
+    "Couldn't send them: {why}": "送れませんでした：{why}",
+});
 
 const NETLIST = /\.(spice|spi|sp|cir|ckt|cdl|net|netlist|v|vg)$/i;
 const BUILT_IN_SETUP = "/setups/scmos.tcl";
@@ -46,7 +74,7 @@ export class Verification {
             readFile: path => this.session.readFile(path),
         });
         this.resultWindow = new ResultWindow({desktop: host.desktop, saveBlob: host.saveBlob, result: () => this.result,
-            emptyText: () => "Run lvs (or Options > LVS against a Schematic) to compare the layout with its schematic."});
+            emptyText: () => t("Run lvs (or Options > LVS against a Schematic) to compare the layout with its schematic.")});
     }
 
     get busy() {
@@ -91,7 +119,7 @@ export class Verification {
     prepare(wid, [schematic, schematicCell, setup]) {
         const host = this.host, cell = host.windowCell();
         if(!cell) {
-            host.print("lvs compares the cell in the window with a schematic: load a cell first.", "error");
+            host.print(t("lvs compares the cell in the window with a schematic: load a cell first."), "error");
             return null;
         }
         // The layout's netlist, as Magic's LVS flow writes it.
@@ -103,19 +131,19 @@ export class Verification {
         try {
             layoutText = decoder.decode(this.read(layout));
         } catch(e) {
-            host.print(`Magic didn't write ${layout}; see the messages above.`, "error");
+            host.print(t("Magic didn't write {file}; see the messages above.", {file: layout}), "error");
             return null;
         }
         const header = layoutText.split("\n").find(l => /^\s*\.subckt\s/i.test(l)) || "";
         if(header.trim().split(/\s+/).length <= 2) {
-            host.print(`${cell} declares no ports, so netgen can't match its pins with the schematic's. ` +
-                "Make the pin labels ports (select the labels, then port make; or port makeall for every label) and run lvs again.", "info");
+            host.print(t("{cell} declares no ports, so netgen can't match its pins with the schematic's. " +
+                "Make the pin labels ports (select the labels, then port make; or port makeall for every label) and run lvs again.", {cell}), "info");
         }
         // The schematic.
         const files = this.files();
         if(schematic) {
             if(!files.includes(schematic)) {
-                host.print(`There is no ${schematic} in the project. Usage: lvs [schematic [cell [setup]]]`, "error");
+                host.print(t("There is no {path} in the project. Usage: lvs [schematic [cell [setup]]]", {path: schematic}), "error");
                 return null;
             }
         } else {
@@ -127,9 +155,9 @@ export class Verification {
                 candidates.find(p => stem(p) === cell.toLowerCase()) ||
                 candidates.find(p => /sch/.test(base(p))) || (candidates.length === 1 ? candidates[0] : null);
             if(!schematic) {
-                host.print(candidates.length ? `Which schematic? The project has ${candidates.join(", ")}: lvs <schematic> [cell [setup]]` :
-                    `The project has no schematic netlist to compare ${cell} with. Add one (a SPICE file, for example ` +
-                    `${cell}_schematic.spice) with Project > Add files to project, then run lvs.`, "error");
+                host.print(candidates.length ? t("Which schematic? The project has {files}: lvs <schematic> [cell [setup]]", {files: candidates.join(", ")}) :
+                    t("The project has no schematic netlist to compare {cell} with. Add one (a SPICE file, for example " +
+                    "{cell}_schematic.spice) with Project > Add files to project, then run lvs.", {cell}), "error");
                 return null;
             }
         }
@@ -141,7 +169,7 @@ export class Verification {
         if(!setup) {
             setup = files.find(p => /setup.*\.tcl$/i.test(p)) || BUILT_IN_SETUP;
         } else if(setup !== BUILT_IN_SETUP && !files.includes(setup)) {
-            host.print(`There is no ${setup} in the project.`, "error");
+            host.print(t("There is no {path} in the project.", {path: setup}), "error");
             return null;
         }
         return {cell, layout, schematic, schematicCell, setup};
@@ -153,8 +181,9 @@ export class Verification {
             return;
         }
         const {cell, layout, schematic, schematicCell, setup} = circuits;
-        host.print(`Comparing the layout of ${cell} with ${schematic}${schematicCell ? `, cell ${schematicCell}` : ""}` +
-            `${setup === BUILT_IN_SETUP ? " (netgen's built-in scmos setup)" : ` (setup ${setup})`}.`, "info");
+        host.print(t("Comparing the layout of {cell} with {schematic}{part}{setup}.", {cell, schematic,
+            part: schematicCell ? t(", cell {cell}", {cell: schematicCell}) : "",
+            setup: setup === BUILT_IN_SETUP ? t(" (netgen's built-in scmos setup)") : t(" (setup {setup})", {setup})}), "info");
 
         if(!await this.start()) {
             return;
@@ -174,7 +203,7 @@ export class Verification {
             fs.writeFile(`${root}/comp.json`, JSON.stringify(result.json, null, 1));
         }
         host.filesChanged();
-        host.print(`LVS: ${result.final} (comp.out and comp.json in the project)`, result.kind === "pass" ? "info" : "error");
+        host.print(t("LVS: {final} (comp.out and comp.json in the project)", {final: result.final}), result.kind === "pass" ? "info" : "error");
         this.resultWindow.open();
         this.resultWindow.render();
     }
@@ -185,7 +214,7 @@ export class Verification {
             return true;
         }
         const host = this.host;
-        host.print("Loading netgen…", "info");
+        host.print(t("Loading netgen…"), "info");
         this.session = new Session({
             onOutput: (text, error) => {
                 if(error) {
@@ -203,17 +232,17 @@ export class Verification {
         try {
             ok = await this.session.start(files);
         } catch(error) {
-            host.print(`Couldn't load netgen: ${error.message || error}`, "error");
+            host.print(t("Couldn't load netgen: {why}", {why: error.message || error}), "error");
             return false;
         }
         if(!ok) {
-            host.print("netgen could not start.", "error");
+            host.print(t("netgen could not start."), "error");
             return false;
         }
         // The notice the GNU General Public License asks for when an interactive program starts.
-        host.print("netgen, Copyright 1990, 1991, 2002, 2004, 2005 Massimo A. Sivilotti, Caltech, and R. Timothy Edwards, " +
+        host.print(t("netgen, Copyright 1990, 1991, 2002, 2004, 2005 Massimo A. Sivilotti, Caltech, and R. Timothy Edwards, " +
             "MultiGiG, Inc., changed for this WebAssembly build in 2026. netgen comes with ABSOLUTELY NO WARRANTY. It is free " +
-            "software: you may redistribute it under the terms of the GNU General Public License; About > netgen license shows a copy.",
+            "software: you may redistribute it under the terms of the GNU General Public License; About > netgen license shows a copy."),
         "info");
         return true;
     }
@@ -229,11 +258,11 @@ export class Verification {
         const paths = [layout, schematic, ...(setup === BUILT_IN_SETUP ? [] : [setup])];
         const project = {name: `${cell}_lvs`, files: paths.map(path => ({path, data: this.read(path)})),
             compare: {circuit1: [layout, cell], circuit2: [schematic, schematicCell], setup, blackbox: false}};
-        host.print(`Sending ${paths.join(", ")} to the netgen app, in a new tab.`, "info");
+        host.print(t("Sending {files} to the netgen app, in a new tab.", {files: paths.join(", ")}), "info");
         try {
             await sendProject(appUrl("netgen", new URL("netgen/", import.meta.url)), "magic", project);
         } catch(error) {
-            host.print(`Couldn't send them: ${error.message}`, "error");
+            host.print(t("Couldn't send them: {why}", {why: error.message}), "error");
         }
     }
 

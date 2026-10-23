@@ -9,6 +9,176 @@
 import {menuBar} from "./menu.js";
 import {ask} from "./dialog.js";
 import {CellManager, LibraryManager, TechManager, DrcManager} from "./managers.js";
+import {t, register, applyStatic} from "./i18n.js";
+
+// The window's text in Japanese (i18n.js).  Menu items that are Magic's own words (DRC, Drc)
+// and Magic's commands, layer and cell names stay as they are.
+register({
+    // Menu titles
+    "Magic window menu": "Magic ウィンドウのメニュー",
+    "File": "ファイル",
+    "Edit": "編集",
+    "Cell": "セル",
+    "Window": "ウィンドウ",
+    "Layers": "レイヤー",
+    "Options": "オプション",
+    // File
+    "Open...": "開く…",
+    "Save...": "保存…",
+    "Flush changes": "変更を破棄",
+    "Read GDS": "GDS を読み込む",
+    "Write GDS": "GDS を書き出す",
+    "Save All": "すべて保存",
+    "Download project (.tar.gz)": "プロジェクトをダウンロード（.tar.gz）",
+    "Throw away unsaved changes to {cell}?": "{cell} の保存していない変更を破棄しますか？",
+    // Edit
+    "Delete": "削除",
+    "Select Area": "領域を選択",
+    "Select Clear": "選択を解除",
+    "Undo": "元に戻す",
+    "Redo": "やり直し",
+    "Rotate 90 degree": "90 度回転",
+    "Mirror Up/Down": "上下反転",
+    "Mirror Left/Right": "左右反転",
+    "Move Right": "右へ移動",
+    "Move Left": "左へ移動",
+    "Move Up": "上へ移動",
+    "Move Down": "下へ移動",
+    "Stretch Right": "右へ引き伸ばし",
+    "Stretch Left": "左へ引き伸ばし",
+    "Stretch Up": "上へ引き伸ばし",
+    "Stretch Down": "下へ引き伸ばし",
+    "Text ...": "テキスト…",
+    // Cell
+    "New...": "新規…",
+    "Save as...": "名前を付けて保存…",
+    "Select": "選択",
+    "Place Instance": "インスタンスを配置",
+    "Down hierarchy": "階層を下りる",
+    "Up   hierarchy": "階層を上る",
+    "Expand Toggle": "展開を切り替え",
+    "Expand": "展開",
+    "Unexpand": "展開を解除",
+    "Lock   Cell": "セルをロック",
+    "Unlock Cell": "セルのロックを解除",
+    "Delete cell {name} from memory?": "セル {name} をメモリから削除しますか？",
+    // Window
+    "Clone": "複製",
+    "New": "新規",
+    "Set Editable": "編集可能にする",
+    "Close": "閉じる",
+    "Full View": "全体表示",
+    "Redraw": "再描画",
+    "Zoom Out": "縮小",
+    "Zoom In": "拡大",
+    "Zoom Box": "ボックスを拡大表示",
+    "Grid on": "グリッドをオン",
+    "Grid off": "グリッドをオフ",
+    "Snap-to-grid on": "グリッドへのスナップをオン",
+    "Snap-to-grid off": "グリッドへのスナップをオフ",
+    "Measure box": "ボックスの寸法",
+    "Report internal units": "内部単位で表示",
+    "Report lambda units": "lambda 単位で表示",
+    "Report micron units": "ミクロン単位で表示",
+    "Report grid units": "グリッド単位で表示",
+    "Display units": "単位を付けて表示",
+    "Set grid {step}": "グリッドを {step} に",
+    // Layers
+    "Protect Base Layers": "基本レイヤーを保護",
+    "Unlock  Base Layers": "基本レイヤーのロックを解除",
+    "Clear Feedback": "フィードバックを消去",
+    "Reorder layers": "レイヤーの並べ替え",
+    "Drag layers in the toolbar to reorder them; choose Layers > Reorder layers again when done.":
+        "ツールバーのレイヤーをドラッグして並べ替えます。終わったら、もう一度「レイヤー」>「レイヤーの並べ替え」を選んでください。",
+    // Drc
+    "DRC update": "DRC を更新",
+    "DRC report": "DRC レポート",
+    "DRC Find next error": "次の DRC エラーを探す",
+    "DRC style {style}": "DRC スタイル {style}",
+    // Options
+    "Toolbar": "ツールバー",
+    "Toolbar Hide Locked": "ツールバーでロック中のレイヤーを隠す",
+    "Cell Manager": "セルマネージャー",
+    "Library Manager": "ライブラリマネージャー",
+    "Tech Manager": "テクノロジーマネージャー",
+    "DRC Manager": "DRC マネージャー",
+    "Netlist Window": "ネットリストウィンドウ",
+    "Colormap Window": "カラーマップウィンドウ",
+    "3D Display": "3D 表示",
+    "Needs OpenGL, which the web build doesn't have": "OpenGL が必要ですが、ウェブ版にはありません",
+    "Window Command Entry": "ウィンドウのコマンド入力",
+    "Crosshair": "十字カーソル",
+    "Start IRSIM first (Start IRSIM, or the irsim command)": "先に IRSIM を起動してください（「IRSIM を起動」または irsim コマンド）",
+    "IRSIM prompt": "IRSIM プロンプト",
+    "Start IRSIM": "IRSIM を起動",
+    "Extract the window's cell, write its .sim and start IRSIM (the irsim command)":
+        "ウィンドウのセルを抽出して .sim を書き出し、IRSIM を起動します（irsim コマンド）",
+    "IRSIM Analyzer": "IRSIM アナライザー",
+    "IRSIM Node Lists": "IRSIM ノードリスト",
+    "Watch Selected Nodes": "選択したノードを監視",
+    "watchnode: label the selected paint's nodes with their values": "watchnode：選択したペイントのノードに値のラベルを付けます",
+    "LVS against a Schematic…": "回路図との LVS…",
+    "Extract the window's cell and compare it with a schematic netlist (the lvs command)":
+        "ウィンドウのセルを抽出し、回路図のネットリストと比較します（lvs コマンド）",
+    "LVS Result": "LVS の結果",
+    "Open in the IRSIM App": "IRSIM アプリで開く",
+    "Extract the window's cell and simulate its .sim in the IRSIM web app, in a new tab":
+        "ウィンドウのセルを抽出し、その .sim を新しいタブの IRSIM ウェブアプリでシミュレーションします",
+    "Open in the netgen App": "netgen アプリで開く",
+    "Extract the window's cell and compare it with its schematic in the netgen web app, in a new tab":
+        "ウィンドウのセルを抽出し、新しいタブの netgen ウェブアプリで回路図と比較します",
+    // Dialogs
+    "New cell": "新しいセル",
+    "Cell name": "セル名",
+    "Create": "作成",
+    "Place instance": "インスタンスを配置",
+    "Places the cell at the box.": "セルをボックスの位置に配置します。",
+    "Place": "配置",
+    "The project has no schematic netlist: add one (a SPICE file) with Project > Add files to project.":
+        "プロジェクトに回路図のネットリストがありません。「プロジェクト」>「プロジェクトにファイルを追加」で追加してください（SPICE ファイル）。",
+    "{path} (project)": "{path}（プロジェクト）",
+    "scmos (netgen's built-in setup)": "scmos（netgen 組み込みのセットアップ）",
+    "LVS against a schematic": "回路図との LVS",
+    "Extracts the cell in this window and compares it with the schematic.": "このウィンドウのセルを抽出し、回路図と比較します。",
+    "Schematic netlist": "回路図のネットリスト",
+    "Cell in it (empty: the one named like the layout, or the last)": "その中のセル（空欄：レイアウトと同じ名前のもの、なければ最後のもの）",
+    "Setup": "セットアップ",
+    "Run LVS": "LVS を実行",
+    "Open cell": "セルを開く",
+    "A cell in the project, or a new name to create one.": "プロジェクト内のセル、または新しく作るセルの名前です。",
+    "Open": "開く",
+    "Save cell": "セルを保存",
+    "Save the edit cell as": "編集セルの保存名",
+    "Save": "保存",
+    "File name": "ファイル名",
+    "Write and download": "書き出してダウンロード",
+    "Text": "テキスト",
+    "Puts a label at the box.": "ボックスの位置にラベルを置きます。",
+    "Justification": "揃え",
+    "default": "既定",
+    "Font": "フォント",
+    "default (no font)": "既定（フォントなし）",
+    "Size (with font)": "サイズ（フォント使用時）",
+    "Rotation (with font)": "回転（フォント使用時）",
+    "Layer (optional)": "レイヤー（省略可）",
+    "Apply": "適用",
+    "Select a cell instance first (Cell > Select, or the i key).": "先にセルのインスタンスを選択してください（「セル」>「選択」、または i キー）。",
+    "Already at the top of the hierarchy.": "すでに階層の最上位です。",
+    // Title bar and toolbar
+    "Background design rule checking": "デザインルールのバックグラウンド検査",
+    "Command for this window": "このウィンドウへのコマンド",
+    "Loaded: {loaded}  Editing: {editing}  Tool: {tool}  Technology: {tech}":
+        "読み込み：{loaded}  編集：{editing}  ツール：{tool}  テクノロジー：{tech}",
+    "none": "なし",
+    "box ({x1} {y1}) to ({x2} {y2})": "ボックス ({x1} {y1})～({x2} {y2})",
+    "no box": "ボックスなし",
+    " (locked)": "（ロック中）",
+    " (hidden)": "（非表示）",
+    "click: show · right click: hide · u: unlock": "クリック：表示 · 右クリック：非表示 · u：ロック解除",
+    "click: show · right click: hide · middle or Alt+click: paint · Shift+middle: erase":
+        "クリック：表示 · 右クリック：非表示 · 中ボタンまたは Alt+クリック：ペイント · Shift+中ボタン：消去",
+    "keys: p paint · e erase · s/S select more/less · l lock": "キー：p ペイント · e 消去 · s/S 選択に追加／選択から除く · l ロック",
+});
 
 const STYLES = `
 .mw-frame { display: flex; flex-direction: column; height: 100%; }
@@ -181,6 +351,19 @@ export class Gui {
         }
     }
 
+    // The language changed: what the title bars, toolbars and managers show.
+    languageChanged() {
+        for(const frame of this.frames.values()) {
+            frame.toolbar.retranslate();
+        }
+        this.update();
+        for(const manager of Object.values(this.managers)) {
+            if(manager.isOpen()) {
+                manager.retranslate();
+            }
+        }
+    }
+
     pointerMoved(win) {
         const frame = this.frames.get(win.wid);
         if(frame) {
@@ -204,7 +387,7 @@ class LayoutFrame {
         root.className = "mw-frame";
         root.innerHTML = '<div class="mw-titlebar"></div>' +
             '<div class="mw-main"><div class="mw-view"></div><div class="mw-toolbar" role="toolbar" aria-orientation="vertical"></div></div>' +
-            '<div class="mw-cmdentry" hidden><label>:</label><input aria-label="Command for this window" spellcheck="false" autocomplete="off"></div>';
+            '<div class="mw-cmdentry" hidden><label>:</label><input data-i18n-aria-label="Command for this window" spellcheck="false" autocomplete="off"></div>';
         win.fw.body.appendChild(root);
         this.view = root.querySelector(".mw-view");
         const titlebar = root.querySelector(".mw-titlebar");
@@ -213,7 +396,7 @@ class LayoutFrame {
             {onDone: () => this.win.canvas.focus({preventScroll: true})}));
         const drc = document.createElement("label");
         drc.className = "mw-drc";
-        drc.title = "Background design rule checking";
+        drc.dataset.i18nTitle = "Background design rule checking";
         drc.innerHTML = '<input type="checkbox" checked> DRC';
         this.drcBox = drc.firstChild;
         this.drcBox.checked = gui.opts.drc;
@@ -232,6 +415,7 @@ class LayoutFrame {
         this.pos = document.createElement("span");
         this.pos.className = "mw-pos";
         titlebar.append(this.caption, this.message, this.pos);
+        applyStatic(root);
 
         this.toolbar = new Toolbar(this, root.querySelector(".mw-toolbar"));
         // On a narrow screen the layout needs the room; Options > Toolbar brings it back.
@@ -265,15 +449,17 @@ class LayoutFrame {
         this.status = status;
         const caption = status.caption || "";
         const m = /^(\S+)\s+EDITING\s+(\S+)/.exec(caption);
-        const loaded = m ? m[1] : caption.split(/\s+/)[0] || "none";
+        const loaded = m ? m[1] : caption.split(/\s+/)[0] || t("none");
         const editing = m ? m[2] : caption;
-        this.caption.textContent = `Loaded: ${loaded}  Editing: ${editing}  Tool: ${status.tool || "box"}  Technology: ${status.tech || ""}`;
+        this.caption.textContent = t("Loaded: {loaded}  Editing: {editing}  Tool: {tool}  Technology: {tech}",
+            {loaded, editing, tool: status.tool || "box", tech: status.tech || ""});
         this.caption.title = this.caption.textContent;
         if(status.tech && status.tech !== this.gui.tech) {
             this.gui.techChanged(status.tech);
         }
         const box = status.box ? status.box.split(" ") : null;
-        this.boxText = box ? `box (${signed(box[0])} ${signed(box[1])}) to (${signed(box[2])} ${signed(box[3])})` : "no box";
+        this.boxText = box ? t("box ({x1} {y1}) to ({x2} {y2})", {x1: signed(box[0]), y1: signed(box[1]), x2: signed(box[2]), y2: signed(box[3])}) :
+            t("no box");
         if(!this.win.pointer) {
             this.pos.textContent = this.boxText;
         }
@@ -329,7 +515,7 @@ class LayoutFrame {
             {label: "Save...", action: () => this.saveCell()},
             "-",
             {label: "Flush changes", action: () => {
-                if(window.confirm(`Throw away unsaved changes to ${windowCell()}?`)) {
+                if(window.confirm(t("Throw away unsaved changes to {cell}?", {cell: windowCell()}))) {
                     this.run("flush -noprompt", false);
                 }
             }},
@@ -391,7 +577,7 @@ class LayoutFrame {
             "-",
             {label: "Delete", action: () => {
                 const name = windowCell();
-                if(name && window.confirm(`Delete cell ${name} from memory?`)) {
+                if(name && window.confirm(t("Delete cell {name} from memory?", {name}))) {
                     this.run(`cellname delete ${name} -noprompt`, false);
                 }
             }},
@@ -439,7 +625,7 @@ class LayoutFrame {
                 this.run(gui.opts.printunits ? "units print" : "units noprint", false);
             }},
             "-",
-            ...GRID_STEPS.map(step => ({label: `Set grid ${step}`, action: run(`grid ${step}`)})),
+            ...GRID_STEPS.map(step => ({label: t("Set grid {step}", {step}), action: run(`grid ${step}`)})),
         ];
 
         const layers = [
@@ -454,7 +640,7 @@ class LayoutFrame {
                     frame.toolbar.setReorder(gui.opts.reorder);
                 }
                 if(gui.opts.reorder) {
-                    app.print("Drag layers in the toolbar to reorder them; choose Layers > Reorder layers again when done.", "info");
+                    app.print(t("Drag layers in the toolbar to reorder them; choose Layers > Reorder layers again when done."), "info");
                 }
             }},
         ];
@@ -467,7 +653,7 @@ class LayoutFrame {
                 {label: "DRC report", action: run("drc why")},
                 {label: "DRC Find next error", action: run("drc find", "findbox zoom")},
                 "-",
-                ...[...new Set(styles)].map(style => ({label: `DRC style ${style}`, checked: () => style === current,
+                ...[...new Set(styles)].map(style => ({label: t("DRC style {style}", {style}), checked: () => style === current,
                     action: run(`drc style ${style}`)})),
             ];
         };
@@ -549,10 +735,10 @@ class LayoutFrame {
         const netlists = files.filter(p => /\.(spice|spi|sp|cir|ckt|cdl|net|netlist|v|vg)$/i.test(p) &&
             !/^\* \w+ file created from .*\.ext/i.test(new TextDecoder().decode(lvs.read(p).subarray(0, 200))));
         if(!netlists.length) {
-            this.app.print("The project has no schematic netlist: add one (a SPICE file) with Project > Add files to project.", "error");
+            this.app.print(t("The project has no schematic netlist: add one (a SPICE file) with Project > Add files to project."), "error");
             return;
         }
-        const setups = [...files.filter(p => /\.tcl$/i.test(p)).map(p => [p, p + " (project)"]), ["/setups/scmos.tcl", "scmos (netgen's built-in setup)"]];
+        const setups = [...files.filter(p => /\.tcl$/i.test(p)).map(p => [p, t("{path} (project)", {path: p})]), ["/setups/scmos.tcl", "scmos (netgen's built-in setup)"]];
         const v = await ask({title: "LVS against a schematic", message: "Extracts the cell in this window and compares it with the schematic.",
             fields: [
                 {name: "schematic", label: "Schematic netlist", options: netlists.map(p => [p, p])},
@@ -623,7 +809,7 @@ class LayoutFrame {
         const cell = this.status.selcell;
         const root = (/^(\S+)/.exec(this.status.caption || "") || [])[1];
         if(!cell || cell === root) {
-            this.app.print("Select a cell instance first (Cell > Select, or the i key).", "error");
+            this.app.print(t("Select a cell instance first (Cell > Select, or the i key)."), "error");
             return;
         }
         this.stack.push({cell: root, view: this.status.view});
@@ -633,7 +819,7 @@ class LayoutFrame {
     up() {
         const last = this.stack.pop();
         if(!last) {
-            this.app.print("Already at the top of the hierarchy.", "info");
+            this.app.print(t("Already at the top of the hierarchy."), "info");
             return;
         }
         this.run(`load ${last.cell}`, false);
@@ -651,7 +837,8 @@ class Toolbar {
     constructor(frame, element) {
         this.frame = frame;
         this.element = element;
-        this.element.setAttribute("aria-label", "Layers");
+        this.element.dataset.i18nAriaLabel = "Layers";
+        this.element.setAttribute("aria-label", t("Layers"));
         this.layers = [];
         this.rows = new Map();
         this.signature = "";
@@ -696,6 +883,14 @@ class Toolbar {
     query() {
         return records(this.frame.app.query("magic_web_layers", [this.frame.wid]))
             .map(([name, locked, visible]) => ({name, locked: locked === "1", visible: visible === "1"}));
+    }
+
+    // The language changed: the rows' tooltips again.
+    retranslate() {
+        for(const row of this.rows.values()) {
+            delete row.dataset.state;
+        }
+        this.refresh();
     }
 
     rebuild() {
@@ -756,10 +951,10 @@ class Toolbar {
             if(layer.visible) {
                 ctx.drawImage(gui.icon(layer.name, layer.locked), 0, 0);
             }
-            row.title = layer.name + (layer.locked ? " (locked)" : "") + (layer.visible ? "" : " (hidden)") +
-                (layer.locked ? "\nclick: show · right click: hide · u: unlock" :
-                    "\nclick: show · right click: hide · middle or Alt+click: paint · Shift+middle: erase" +
-                    "\nkeys: p paint · e erase · s/S select more/less · l lock");
+            row.title = layer.name + (layer.locked ? t(" (locked)") : "") + (layer.visible ? "" : t(" (hidden)")) +
+                (layer.locked ? "\n" + t("click: show · right click: hide · u: unlock") :
+                    "\n" + t("click: show · right click: hide · middle or Alt+click: paint · Shift+middle: erase") +
+                    "\n" + t("keys: p paint · e erase · s/S select more/less · l lock"));
             row.setAttribute("aria-label", row.title.split("\n")[0]);
         }
     }
@@ -790,7 +985,7 @@ class Toolbar {
         });
         el.addEventListener("pointerover", event => {
             const layer = this.layerAt(event);
-            frame.setMessage(layer ? layer.name + (layer.locked ? " (locked)" : "") : "");
+            frame.setMessage(layer ? layer.name + (layer.locked ? t(" (locked)") : "") : "");
         });
         el.addEventListener("pointerleave", () => {
             frame.setMessage("");

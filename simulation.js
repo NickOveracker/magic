@@ -26,6 +26,30 @@ import {RsimBridge} from "./rsim.js";
 import {Analyzer} from "./irsim/analyzer.js";
 import {TraceManager} from "./irsim/tracemgr.js";
 import {appUrl, sendProject} from "./handoff.js";
+import {t, register} from "./i18n.js";
+
+// The page's messages about IRSIM in Japanese (i18n.js); IRSIM's own output stays as it is.
+register({
+    "Loading IRSIM…": "IRSIM を読み込み中…",
+    "IRSIM 9.7, Copyright (C) 1988, 1990 Stanford University, changed for this WebAssembly build in 2026. IRSIM comes with ABSOLUTELY NO WARRANTY. It is free software: you may redistribute it under the terms of the GNU General Public License; About > IRSIM license shows a copy.":
+        "IRSIM 9.7、Copyright (C) 1988, 1990 Stanford University。2026 年にこの WebAssembly 版のために変更されています。IRSIM は完全に無保証です。IRSIM はフリーソフトウェアであり、GNU 一般公衆利用許諾書（GPL）の条件のもとで再頒布できます。その写しは「情報」>「IRSIM のライセンス」にあります。",
+    "Couldn't load IRSIM: {why}": "IRSIM を読み込めませんでした：{why}",
+    "IRSIM is already running; at the irsim> prompt, q quits it.": "IRSIM はすでに実行中です。irsim> プロンプトで q と入力すると終了します。",
+    "Load a cell first.": "先にセルを読み込んでください。",
+    'IRSIM is running on {sim}. Commands now go to IRSIM (h, l, s, ana…); "." returns to Magic, where simcmd, the rsim tool (space) and watchnode use it; "q" quits.':
+        "IRSIM が {sim} で実行中です。コマンドは IRSIM に送られます（h, l, s, ana…）。「.」で Magic に戻ると、simcmd、rsim ツール（space）、watchnode で IRSIM を使えます。「q」で終了します。",
+    "IRSIM's supplies are Vdd and Gnd; drive this cell's with h/l first (e.g. {examples}).":
+        "IRSIM の電源は Vdd と Gnd です。このセルの電源は、先に h/l で駆動してください（例：{examples}）。",
+    "Magic didn't write {file}; see the messages above.": "Magic は {file} を書き出しませんでした。上のメッセージを見てください。",
+    "Sending {files} to the IRSIM app, in a new tab (parameters {prm}).": "{files} を新しいタブの IRSIM アプリに送ります（パラメーター {prm}）。",
+    "Sending {files} to the IRSIM app, in a new tab (parameters {prm}, running {cmd}).":
+        "{files} を新しいタブの IRSIM アプリに送ります（パラメーター {prm}、{cmd} を実行）。",
+    "Couldn't send them: {why}": "送れませんでした：{why}",
+    "IRSIM isn't running.": "IRSIM は実行されていません。",
+    "Start IRSIM first (irsim, or rsim prm file.sim).": "先に IRSIM を起動してください（irsim、または rsim prm file.sim）。",
+    "Select some paint first, or name the node: watchnode name.": "先にペイントを選択するか、ノードを指定してください：watchnode name。",
+    "Watching {nodes}.": "{nodes} を監視しています。",
+});
 
 export class Simulation {
     // host: {magic, print, run(wid, line, quiet), capture(wid, line), projectRoot(), desktop, saveBlob,
@@ -145,18 +169,18 @@ export class Simulation {
 
     async load() {
         if(!this.bridge.running) {
-            this.host.print("Loading IRSIM…", "info");
+            this.host.print(t("Loading IRSIM…"), "info");
             try {
                 await this.bridge.load();
                 if(!this.announced) {
                     // The notice the GNU General Public License asks for when an interactive program starts.
                     this.announced = true;
-                    this.host.print("IRSIM 9.7, Copyright (C) 1988, 1990 Stanford University, changed for this WebAssembly " +
+                    this.host.print(t("IRSIM 9.7, Copyright (C) 1988, 1990 Stanford University, changed for this WebAssembly " +
                         "build in 2026. IRSIM comes with ABSOLUTELY NO WARRANTY. It is free software: you may redistribute it " +
-                        "under the terms of the GNU General Public License; About > IRSIM license shows a copy.", "info");
+                        "under the terms of the GNU General Public License; About > IRSIM license shows a copy."), "info");
                 }
             } catch(error) {
-                this.host.print(`Couldn't load IRSIM: ${error.message || error}`, "error");
+                this.host.print(t("Couldn't load IRSIM: {why}", {why: error.message || error}), "error");
                 throw error;
             }
         }
@@ -165,7 +189,7 @@ export class Simulation {
     // The irsim command of IRSIM's Tcl integration: extract and ext2sim when needed, then start.
     async irsim(wid, [prm = "scmos100", cellArg]) {
         if(this.running) {
-            this.host.print("IRSIM is already running; at the irsim> prompt, q quits it.", "info");
+            this.host.print(t("IRSIM is already running; at the irsim> prompt, q quits it."), "info");
             this.host.run(wid, "rsim", true);
             return;
         }
@@ -175,7 +199,7 @@ export class Simulation {
         } else {
             const cell = cellArg || this.host.windowCell();
             if(!cell) {
-                this.host.print("Load a cell first.", "error");
+                this.host.print(t("Load a cell first."), "error");
                 return;
             }
             sim = `${cell}.sim`;
@@ -197,14 +221,14 @@ export class Simulation {
         await this.load();
         this.host.run(wid, `startrsim ${prm} ${sim}`);
         if(this.running) {
-            this.host.print("IRSIM is running on " + sim + ". Commands now go to IRSIM (h, l, s, ana…); " +
-                "\".\" returns to Magic, where simcmd, the rsim tool (space) and watchnode use it; \"q\" quits.", "info");
+            this.host.print(t("IRSIM is running on {sim}. Commands now go to IRSIM (h, l, s, ana…); " +
+                '"." returns to Magic, where simcmd, the rsim tool (space) and watchnode use it; "q" quits.', {sim}), "info");
             // IRSIM's supplies are Vdd and Gnd; a cell labelled otherwise needs them driven.
             const nodes = this.bridge.names().nodes.split(/\s+/);
             const supplies = nodes.filter(n => /^(vdd|vcc|gnd|vss)!?$/i.test(n) && !/^(Vdd|Gnd)$/.test(n));
             if(supplies.length) {
-                this.host.print(`IRSIM's supplies are Vdd and Gnd; drive this cell's with h/l first (e.g. ${
-                    supplies.map(n => (/^v(dd|cc)/i.test(n) ? "h " : "l ") + n).join(", ")}).`, "info");
+                this.host.print(t("IRSIM's supplies are Vdd and Gnd; drive this cell's with h/l first (e.g. {examples}).",
+                    {examples: supplies.map(n => (/^v(dd|cc)/i.test(n) ? "h " : "l ") + n).join(", ")}), "info");
             }
             this.host.run(wid, "rsim", true);
         }
@@ -216,7 +240,7 @@ export class Simulation {
     async sendToIrsim(wid) {
         const host = this.host, cell = host.windowCell();
         if(!cell) {
-            host.print("Load a cell first.", "error");
+            host.print(t("Load a cell first."), "error");
             return;
         }
         host.run(wid, "extract all", false);
@@ -227,17 +251,17 @@ export class Simulation {
         try {
             files = [{path: sim, data: read(sim)}, ...fs.readdir(root).filter(p => /\.(cmd|prm)$/i.test(p)).map(path => ({path, data: read(path)}))];
         } catch(e) {
-            host.print(`Magic didn't write ${sim}; see the messages above.`, "error");
+            host.print(t("Magic didn't write {file}; see the messages above.", {file: sim}), "error");
             return;
         }
         const prm = (this.bridge.lastArgs || "").split(/\s+/).find(a => a && !a.startsWith("-") && !/\.sim$/i.test(a)) || "scmos100";
         const cmd = files.some(f => f.path === `${cell}.cmd`) ? `${cell}.cmd` : "";
-        host.print(`Sending ${files.map(f => f.path).join(", ")} to the IRSIM app, in a new tab (parameters ${prm}${
-            cmd ? `, running ${cmd}` : ""}).`, "info");
+        host.print(t(cmd ? "Sending {files} to the IRSIM app, in a new tab (parameters {prm}, running {cmd})." :
+            "Sending {files} to the IRSIM app, in a new tab (parameters {prm}).", {files: files.map(f => f.path).join(", "), prm, cmd}), "info");
         try {
             await sendProject(appUrl("irsim", new URL("irsim/", import.meta.url)), "magic", {name: cell, files, setup: {prm, cmd}});
         } catch(error) {
-            host.print(`Couldn't send them: ${error.message}`, "error");
+            host.print(t("Couldn't send them: {why}", {why: error.message}), "error");
         }
     }
 
@@ -257,7 +281,7 @@ export class Simulation {
     // A command from the analyzer or the trace manager (ana, clear…).
     irsimCommand(line) {
         if(!this.running) {
-            this.host.print("IRSIM isn't running.", "error");
+            this.host.print(t("IRSIM isn't running."), "error");
             return;
         }
         this.host.print("irsim> " + line, "command");
@@ -280,7 +304,7 @@ export class Simulation {
 
     watchnode(wid, nodes) {
         if(!this.running) {
-            this.host.print("Start IRSIM first (irsim, or rsim prm file.sim).", "error");
+            this.host.print(t("Start IRSIM first (irsim, or rsim prm file.sim)."), "error");
             return;
         }
         if(!nodes.length) {
@@ -288,7 +312,7 @@ export class Simulation {
             nodes = this.host.capture(wid, "getnode").map(l => /:\s*(.*)$/.exec(l)).filter(Boolean)
                 .flatMap(m => m[1].trim().split(/\s+/)).filter(Boolean);
             if(!nodes.length) {
-                this.host.print("Select some paint first, or name the node: watchnode name.", "error");
+                this.host.print(t("Select some paint first, or name the node: watchnode name."), "error");
                 return;
             }
         }
@@ -302,7 +326,7 @@ export class Simulation {
             }
             this.bridge.command(`ana ${clean}`);
         });
-        this.host.print(`Watching ${nodes.join(" ")}.`, "info");
+        this.host.print(t("Watching {nodes}.", {nodes: nodes.join(" ")}), "info");
         this.afterCommand();
     }
 

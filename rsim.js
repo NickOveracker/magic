@@ -13,6 +13,15 @@
 // IRSIM is loaded only when a simulator command first needs it, and dropped
 // again when the simulator quits, as the desktop process would be.
 
+import {t, register} from "./i18n.js";
+
+register({
+    "Couldn't load {url}": "{url} を読み込めませんでした",
+    "IRSIM is still loading; give the command again in a moment.": "IRSIM はまだ読み込み中です。少し待ってから、もう一度コマンドを入力してください。",
+    "IRSIM stopped.": "IRSIM が停止しました。",
+    "IRSIM stopped: {why}": "IRSIM が停止しました：{why}",
+});
+
 const IRSIM_DIR = new URL("irsim/", import.meta.url);
 const PRM_DIR = new URL("irsim/src/lib/prm/", import.meta.url);
 const PRMS = ["scmos100", "scmos30", "scmos35", "scmos50_3v", "scmos50_5v", "scmos60", "scmos1_6um", "scmos2um",
@@ -28,7 +37,7 @@ function loadScript(url) {
         const script = document.createElement("script");
         script.src = url;
         script.onload = resolve;
-        script.onerror = () => reject(new Error(`Couldn't load ${url}`));
+        script.onerror = () => reject(new Error(t("Couldn't load {url}", {url})));
         document.head.appendChild(script);
     });
 }
@@ -103,7 +112,7 @@ export class RsimBridge {
             return -1;
         }
         if(!this.spare) {
-            this.host.print("IRSIM is still loading; give the command again in a moment.", "error");
+            this.host.print(t("IRSIM is still loading; give the command again in a moment."), "error");
             this.load();
             return -1;
         }
@@ -197,7 +206,7 @@ export class RsimBridge {
         if(this.irsim) {
             this.irsim = null;
             this.queue = [];
-            this.host.print("IRSIM stopped.", "info");
+            this.host.print(t("IRSIM stopped."), "info");
             setTimeout(() => this.host.onStop(), 0);
         }
     }
@@ -218,7 +227,7 @@ export class RsimBridge {
             this.irsim.ccall("irsim_web_command", "number", ["string"], [line]);
         } catch(e) {
             // IRSIM exited (exit command) or crashed: Magic sees the pipe close.
-            this.output.push(`IRSIM stopped: ${e.message || e}`);
+            this.output.push(t("IRSIM stopped: {why}", {why: e.message || e}));
             this.irsim = null;
             setTimeout(() => this.host.onStop(), 0);
         }

@@ -5,6 +5,67 @@
 // manager (tcltk/drcmgr.tcl).
 
 import {FloatingWindow} from "./floating-window.js";
+import {t, register} from "./i18n.js";
+
+// The managers' text in Japanese (i18n.js).  Cell names, styles and DRC rules are Magic's.
+register({
+    "Layout window that the buttons act on": "ボタンの操作対象のレイアウトウィンドウ",
+    "default window": "既定のウィンドウ",
+    "window {n}": "ウィンドウ {n}",
+    "Refresh": "更新",
+    // Cell manager
+    "Cell Manager": "セルマネージャー",
+    "Zoom": "ズーム",
+    "Show the selected cell or instance": "選択したセルまたはインスタンスを表示します",
+    "Edit": "編集",
+    "Make it the edit cell": "編集セルにします",
+    "Load": "読み込み",
+    "Load its definition into the window": "その定義をウィンドウに読み込みます",
+    "Expand": "展開",
+    "Toggle its expansion": "展開を切り替えます",
+    "Place": "配置",
+    "Place an instance of it at the box": "そのインスタンスをボックスの位置に配置します",
+    "Cell hierarchy": "セルの階層",
+    "No cells loaded.": "読み込まれているセルはありません。",
+    "Choose a cell in the Cell Manager first.": "先にセルマネージャーでセルを選んでください。",
+    // Library manager
+    "Library Manager": "ライブラリマネージャー",
+    "Load the cell into the window": "セルをウィンドウに読み込みます",
+    "Place an instance at the box": "インスタンスをボックスの位置に配置します",
+    "Add files…": "ファイルを追加…",
+    "Add .mag files to the project": ".mag ファイルをプロジェクトに追加します",
+    "Project cells": "プロジェクトのセル",
+    "No .mag files in the project.": "プロジェクトに .mag ファイルはありません。",
+    // Technology manager
+    "Technology Manager": "テクノロジーマネージャー",
+    "Load technology {name}? Layout already in memory may become invalid.":
+        "テクノロジー {name} を読み込みますか？メモリ上のレイアウトが無効になることがあります。",
+    "Technology": "テクノロジー",
+    "version {version} · {description}": "バージョン {version} · {description}",
+    "Microns per lambda (CIF)": "lambda あたりのミクロン数（CIF）",
+    "Internal units": "内部単位",
+    "Lambda": "lambda",
+    "Press Enter to apply (scalegrid)": "Enter で適用します（scalegrid）",
+    "Internal units per lambda": "lambda あたりの内部単位数",
+    "CIF input style": "CIF 入力スタイル",
+    "CIF output style": "CIF 出力スタイル",
+    "Extract style": "抽出スタイル",
+    "DRC style": "DRC スタイル",
+    // DRC manager
+    "DRC Manager": "DRC マネージャー",
+    "Update": "更新",
+    "Check the whole cell again and list the errors": "セル全体をもう一度検査し、エラーを一覧にします",
+    "Last": "前へ",
+    "Next": "次へ",
+    "Save": "保存",
+    "Download the error report": "エラーのレポートをダウンロードします",
+    "DRC errors": "DRC エラー",
+    "1 error": "エラー 1 件",
+    "{n} errors": "エラー {n} 件",
+    "No DRC errors.": "DRC エラーはありません。",
+    "DRC report for {cell} (coordinates in internal units: llx lly urx ury)":
+        "{cell} の DRC レポート（座標は内部単位：llx lly urx ury）",
+});
 
 const STYLES = `
 .mg-body { display: flex; flex-direction: column; height: 100%; font-size: 13px; }
@@ -38,12 +99,16 @@ function records(text) {
     return text.split("\n").filter(Boolean).map(line => line.split("\t"));
 }
 
+// Labels and titles are given in English; applyStatic() translates them again when the
+// language changes.
 function button(label, action, title) {
     const b = document.createElement("button");
     b.type = "button";
-    b.textContent = label;
+    b.dataset.i18n = label;
+    b.textContent = t(label);
     if(title) {
-        b.title = title;
+        b.dataset.i18nTitle = title;
+        b.title = t(title);
     }
     b.addEventListener("click", action);
     return b;
@@ -91,17 +156,19 @@ class Manager {
     // A "target window" chooser, as in the Tcl managers.
     targetSelect() {
         const select = document.createElement("select");
-        select.title = "Layout window that the buttons act on";
+        select.dataset.i18nTitle = "Layout window that the buttons act on";
+        select.title = t("Layout window that the buttons act on");
         const fill = () => {
             const current = select.value;
             select.textContent = "";
-            select.add(new Option("default window", "-1"));
+            select.add(new Option(t("default window"), "-1"));
             for(const w of this.gui.windowsOf("layout")) {
-                select.add(new Option(`window ${w.wid}`, String(w.wid)));
+                select.add(new Option(t("window {n}", {n: w.wid}), String(w.wid)));
             }
             select.value = [...select.options].some(o => o.value === current) ? current : "-1";
         };
         select.addEventListener("focus", fill);
+        this.fillTargets = fill;
         select.addEventListener("change", () => {
             this.targetWid = Number(select.value);
         });
@@ -118,6 +185,12 @@ class Manager {
     }
 
     refreshIfStale() {
+    }
+
+    // The language changed: the buttons follow by themselves (applyStatic); the rest is redrawn.
+    retranslate() {
+        this.fillTargets?.();
+        this.refresh();
     }
 }
 
@@ -188,7 +261,8 @@ export class CellManager extends Manager {
             button("Refresh", () => this.refresh()),
             this.targetSelect());
         this.list = selectableList(() => this.act("zoom"));
-        this.list.setAttribute("aria-label", "Cell hierarchy");
+        this.list.dataset.i18nAriaLabel = "Cell hierarchy";
+        this.list.setAttribute("aria-label", t("Cell hierarchy"));
         this.body.append(bar, this.list);
     }
 
@@ -244,7 +318,8 @@ export class CellManager extends Manager {
             this.list.appendChild(li);
         });
         if(!rows.length) {
-            this.list.innerHTML = '<li class="mg-empty">No cells loaded.</li>';
+            this.list.innerHTML = '<li class="mg-empty"></li>';
+            this.list.firstChild.textContent = t("No cells loaded.");
         }
         const again = selected && [...this.list.children].find(li => li.dataset.path === selected);
         this.list.select(again || null);
@@ -254,7 +329,7 @@ export class CellManager extends Manager {
     act(command) {
         const li = this.list.selected();
         if(!li) {
-            this.app.print("Choose a cell in the Cell Manager first.", "info");
+            this.app.print(t("Choose a cell in the Cell Manager first."), "info");
             return;
         }
         const parts = li.dataset.path.split("/"), root = parts[0], cell = li.dataset.cell;
@@ -312,7 +387,8 @@ export class LibraryManager extends Manager {
             button("Refresh", () => this.refresh()),
             this.targetSelect());
         this.list = selectableList(() => this.act("load"));
-        this.list.setAttribute("aria-label", "Project cells");
+        this.list.dataset.i18nAriaLabel = "Project cells";
+        this.list.setAttribute("aria-label", t("Project cells"));
         this.body.append(bar, this.list);
     }
 
@@ -347,7 +423,8 @@ export class LibraryManager extends Manager {
             }
         }
         if(!byFolder.size) {
-            this.list.innerHTML = '<li class="mg-empty">No .mag files in the project.</li>';
+            this.list.innerHTML = '<li class="mg-empty"></li>';
+            this.list.firstChild.textContent = t("No .mag files in the project.");
         }
         this.list.select((selected && [...this.list.children].find(li => li.dataset.cell === selected)) || null);
     }
@@ -381,7 +458,7 @@ export class TechManager extends Manager {
         this.form.textContent = "";
         const row = (label, control) => {
             const l = document.createElement("label");
-            l.textContent = label;
+            l.textContent = t(label);
             this.form.append(l, control);
         };
         const text = value => {
@@ -410,7 +487,7 @@ export class TechManager extends Manager {
         }
         tech.value = info.name?.[0] || "";
         tech.addEventListener("change", () => {
-            if(window.confirm(`Load technology ${tech.value}? Layout already in memory may become invalid.`)) {
+            if(window.confirm(t("Load technology {name}? Layout already in memory may become invalid.", {name: tech.value}))) {
                 this.app.run(-1, `tech load ${tech.value} -noprompt`);
             }
             this.refresh();
@@ -418,7 +495,7 @@ export class TechManager extends Manager {
         row("Technology", tech);
         const wide = document.createElement("div");
         wide.className = "mg-wide";
-        wide.textContent = `version ${info.version?.[0] || "?"} · ${info.description?.[0] || ""}`;
+        wide.textContent = t("version {version} · {description}", {version: info.version?.[0] || "?", description: info.description?.[0] || ""});
         this.form.appendChild(wide);
 
         const [num, den] = (info.lambda?.[0] || "1 1").split(" ").map(Number);
@@ -429,8 +506,8 @@ export class TechManager extends Manager {
         n.size = d.size = 3;
         n.value = num;
         d.value = den;
-        n.setAttribute("aria-label", "Internal units");
-        d.setAttribute("aria-label", "Lambda");
+        n.setAttribute("aria-label", t("Internal units"));
+        d.setAttribute("aria-label", t("Lambda"));
         const apply = event => {
             if(event.key === "Enter") {
                 this.app.run(-1, `scalegrid ${n.value} ${d.value}`);
@@ -440,7 +517,7 @@ export class TechManager extends Manager {
         n.addEventListener("keydown", apply);
         d.addEventListener("keydown", apply);
         lambda.append(n, " / ", d);
-        lambda.title = "Press Enter to apply (scalegrid)";
+        lambda.title = t("Press Enter to apply (scalegrid)");
         row("Internal units per lambda", lambda);
         row("CIF input style", styleSelect(info.cifin, "cif istyle"));
         row("CIF output style", styleSelect(info.cifout, "cif ostyle"));
@@ -475,7 +552,8 @@ export class DrcManager extends Manager {
         this.summary.className = "mg-dim mg-grow";
         bar.appendChild(this.summary);
         this.list = selectableList(() => this.zoom());
-        this.list.setAttribute("aria-label", "DRC errors");
+        this.list.dataset.i18nAriaLabel = "DRC errors";
+        this.list.setAttribute("aria-label", t("DRC errors"));
         this.list.addEventListener("click", event => {
             if(event.target.closest("li[data-box]") && !event.target.closest(".mg-twisty")) {
                 this.zoom();
@@ -526,9 +604,10 @@ export class DrcManager extends Manager {
                 this.list.appendChild(li);
             }
         }
-        this.summary.textContent = `${this.errors.length} error${this.errors.length === 1 ? "" : "s"}`;
+        this.summary.textContent = t(this.errors.length === 1 ? "1 error" : "{n} errors", {n: this.errors.length});
         if(!this.errors.length) {
-            this.list.innerHTML = '<li class="mg-empty">No DRC errors.</li>';
+            this.list.innerHTML = '<li class="mg-empty"></li>';
+            this.list.firstChild.textContent = t("No DRC errors.");
         }
     }
 
@@ -556,7 +635,7 @@ export class DrcManager extends Manager {
 
     save() {
         const cell = (/^(\S+)/.exec(this.gui.frames.get(this.target())?.status.caption || "") || [])[1] || "layout";
-        const lines = [`DRC report for ${cell} (coordinates in internal units: llx lly urx ury)`, ""];
+        const lines = [t("DRC report for {cell} (coordinates in internal units: llx lly urx ury)", {cell}), ""];
         let last = null;
         for(const [rule, box] of this.errors || []) {
             if(rule !== last) {

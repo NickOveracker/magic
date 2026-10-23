@@ -40,7 +40,7 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
   border-radius: 999px; background: rgba(255, 94, 91, .1); color: var(--fg); font-size: 12px; text-decoration: none;
   white-space: nowrap; }
 #kofi:hover, #kofi:focus-visible { background: rgba(255, 94, 91, .22); }
-#kofi span { color: #ff5e5b; font-size: 13px; }
+#kofi span[aria-hidden] { color: #ff5e5b; font-size: 13px; }
 #status { margin-left: auto; color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden;
   text-overflow: ellipsis; max-width: 40vw; }
 
@@ -71,9 +71,9 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 #help dd { margin: 0; color: var(--muted); }
 #help p { margin: 6px 0; }
 
-body.dragging #desktop::after { content: "Drop files, a folder, or a .zip / .tar.gz to open it"; position: absolute;
+body.dragging #desktop::after { content: attr(data-drop); position: absolute;
   inset: 12px; display: grid; place-items: center; border: 2px dashed var(--accent); border-radius: 12px;
-  background: color-mix(in srgb, var(--panel) 85%, transparent); font-size: 16px; z-index: 900001; }
+  background: color-mix(in srgb, var(--panel) 85%, transparent); font-size: 16px; z-index: 900001; text-align: center; padding: 20px; }
 
 @media (max-width: 640px) {
   .toolbar h1 small, #status { display: none; }
@@ -84,19 +84,21 @@ body.dragging #desktop::after { content: "Drop files, a folder, or a .zip / .tar
 </head>
 <body>
 <header class="toolbar">
-  <h1>Magic <small>VLSI layout · WebAssembly</small></h1>
+  <h1>Magic <small data-i18n="VLSI layout · WebAssembly">VLSI layout · WebAssembly</small></h1>
   <div id="top-menus"></div>
-  <button type="button" id="help-toggle" aria-expanded="false" aria-controls="help">Help</button>
-  <span id="status" role="status">Loading…</span>
-  <a id="kofi" href="https://ko-fi.com/twentynine" target="_blank" rel="noopener"><span aria-hidden="true">♥</span>Support on Ko-fi</a>
+  <button type="button" id="help-toggle" aria-expanded="false" aria-controls="help" data-i18n="Help">Help</button>
+  <span id="status" role="status" data-i18n="Loading…">Loading…</span>
+  <a id="kofi" href="https://ko-fi.com/twentynine" target="_blank" rel="noopener"><span aria-hidden="true">♥</span><span
+    data-i18n="Support on Ko-fi">Support on Ko-fi</span></a>
   <input type="file" id="pick-files" multiple hidden accept=".mag,.gds,.gds2,.tech,.zip,.tar,.tgz,.gz,.ext,.sim,.spice,.sp,.spi,.cir,.cdl,.net,.v,.tcl,.cmd,.prm,.cif,.lef,.def">
   <input type="file" id="add-files" multiple hidden accept=".spice,.sp,.spi,.cir,.ckt,.cdl,.net,.netlist,.v,.tcl,.cmd,.prm,.sim,.mag,.tech,.gds,.txt">
   <input type="file" id="pick-folder" webkitdirectory hidden>
 </header>
 
-<main id="desktop" aria-label="Magic windows"></main>
+<main id="desktop" data-i18n-aria-label="Magic windows"></main>
 
 <aside id="help" hidden>
+ <div data-only="en">
   <h2>Mouse (box tool)</h2>
   <dl>
     <dt>Left</dt><dd>Move the box (its lower left corner) to the pointer</dd>
@@ -150,12 +152,65 @@ body.dragging #desktop::after { content: "Drop files, a folder, or a .zip / .tar
     file Magic writes, for example with File > Save All or the w key, goes straight into that folder) or
     <b>keep the project in browser storage</b> (any browser; private to this site). Both appear under
     Project > Recent next time. Otherwise files live in memory until you download them as .tar.gz.</p>
+ </div>
+ <div data-only="ja" lang="ja">
+  <h2>マウス（ボックスツール）</h2>
+  <dl>
+    <dt>左ボタン</dt><dd>ボックス（の左下隅）をポインターの位置へ移動します</dd>
+    <dt>右ボタン</dt><dd>ボックスの右上隅をポインターの位置へ移動します</dd>
+    <dt>中ボタン、Alt+左ボタン</dt><dd>ポインターの下のレイヤーをボックスにペイントします（何もない所では消去）</dd>
+    <dt>ホイール</dt><dd>スクロールします。Shift+ホイールで横にスクロール、Ctrl+ホイールまたはピンチで拡大縮小します</dd>
+  </dl>
+  <h2>キー（ポインターをウィンドウ内に置いて）</h2>
+  <dl>
+    <dt>:</dt><dd>コマンドを入力します（下の入力欄でも可）</dd>
+    <dt>v, z, Z</dt><dd>全体表示、ボックスに拡大、縮小</dd>
+    <dt>s, a, i</dt><dd>ボックスの下を選択：ペイント、見えているもの、セル</dd>
+    <dt>c, m, d</dt><dd>選択したものをコピー、移動、削除</dd>
+    <dt>u, U</dt><dd>元に戻す、やり直し</dd>
+    <dt>?</dt><dd>ボックスの下の DRC エラーを説明します</dd>
+    <dt>矢印キー</dt><dd>スクロールします。Ctrl+矢印キーでボックスを広げます</dd>
+    <dt>space</dt><dd>次のツール</dd>
+  </dl>
+  <h2>ウィンドウのメニューとツールバー</h2>
+  <p>各レイアウトウィンドウには、Tcl/Tk ラッパーのメニュー（ファイル、編集、セル、ウィンドウ、レイヤー、Drc、オプション）、DRC
+    のスイッチ、ボックスまたはポインターの座標があります。「オプション」からは、セル、ライブラリ、テクノロジー、DRC
+    の各マネージャー、ネットリストとカラーマップのウィンドウ、ウィンドウごとのコマンド入力、十字カーソルを開けます。</p>
+  <dl>
+    <dt>レイヤーをクリック</dt><dd>表示します。右クリックで隠します</dd>
+    <dt>中ボタン、Alt+クリック</dt><dd>ボックスにペイントします。Shift+中ボタンで消去します</dd>
+    <dt>p e s S l u</dt><dd>ポインターをレイヤーに置いて：ペイント、消去、選択に追加、選択から除く、ロック、ロック解除</dd>
+  </dl>
+  <h2>シミュレーション（IRSIM）</h2>
+  <p><b>irsim</b> [prm] [cell] は、必要ならセルを抽出して .sim を書き出し、IRSIM を起動して（読み込むのはこの時です）、
+    <b>irsim&gt;</b> プロンプトを出します。h、l、s、d、ana などの IRSIM のコマンドが使えます。電源の名前が Vdd と Gnd でないセルは、先に電源を駆動する必要があります（例：<b>h VDD</b> と <b>l GND</b>）。<b>.</b> と入力すると Magic に戻ります。Magic では、
+    <b>simcmd</b> d で選択したものに IRSIM のコマンドを適用し、<b>watchnode</b> で選択したノードに値のラベルを付け、rsim
+    ツール（space）では中ボタンのクリックでノードの値を表示します。プロンプトで <b>q</b> と入力すると IRSIM を終了します。「オプション」>「IRSIM
+    アナライザー」「IRSIM ノードリスト」もあります。</p>
+  <h2>回路図との照合（LVS）</h2>
+  <p><b>lvs</b> [schematic [cell [setup]]] は、ウィンドウのセルを抽出し（<code>ext2spice
+    lvs</code>）、プロジェクト内の回路図のネットリスト（「プロジェクト」>「プロジェクトにファイルを追加」で追加できます）と netgen で比較します（netgen
+    を読み込むのはこの時です）。レイアウトが同じ回路を、素子ごと、ネットごとに実現しているかを調べます。引数なしでは、名前に「sch」を含むプロジェクトのネットリストと、
+    netgen の scmos 用セットアップを使います。違いは<b>結果</b>ウィンドウに表示され、レポートは comp.out に保存されます。「オプション」>「回路図との
+    LVS…」でも、ダイアログから同じことができます。netgen がピンを対応付けられるよう、セルのピンはポート（<code>port
+    makeall</code>）にしておく必要があります。どのデモにも回路図が付いています。Stixu のレイアウトには n ウェルのコンタクトがないため、ウェルが浮いていると LVS に指摘されますが、「n
+    ウェルコンタクト付きインバーター」は一致します。</p>
+  <p>「オプション」>「<b>IRSIM アプリで開く</b>」と「<b>netgen アプリで開く</b>」は、ウィンドウのセルを抽出し、IRSIM または netgen
+    のウェブアプリを新しいタブで開いて渡します。IRSIM はその .sim をシミュレーションし（プロジェクトに &lt;cell&gt;.cmd があれば実行します）、
+    netgen は lvs が選ぶ回路図と比較します。ファイルはブラウザー内でタブからタブへ渡されます。</p>
+  <h2>プロジェクト</h2>
+  <p>「プロジェクト」>「ファイルを開く」または「フォルダーを開く」で、.mag ファイル、フォルダー、または .zip、.tar、.tar.gz
+    のアーカイブ 1 つをページにコピーします。ページにドロップすることもできます。ほかのどのセルからも使われていないセルが開かれます。プロジェクトに .tech
+    ファイルがあれば先にそれを読み込み、なければセルが指定するテクノロジーを読み込みます（scmos は組み込みです）。</p>
+  <p>作業内容を残すには、<b>ディスク上のフォルダーで作業</b>する（Chrome、Edge などの Chromium 系ブラウザー。「ファイル」>「すべて保存」や
+    w キーなどで Magic が書き出すファイルは、すべてそのフォルダーに直接保存されます）か、<b>プロジェクトをブラウザーのストレージに保存</b>します（どのブラウザーでも可。このサイト専用）。どちらも次回、「プロジェクト」の最近のプロジェクトに表示されます。そうしない場合、ファイルは .tar.gz としてダウンロードするまでメモリ上にだけあります。</p>
+ </div>
 </aside>
 
-<section id="console" aria-label="Magic console">
+<section id="console" data-i18n-aria-label="Magic console">
   <div id="log" aria-live="polite"></div>
   <div class="command-row">
-    <button type="button" id="console-toggle" aria-expanded="true" aria-controls="log" title="Show or hide the console">☰</button>
+    <button type="button" id="console-toggle" aria-expanded="true" aria-controls="log" data-i18n-title="Show or hide the console">☰</button>
     <label for="command">:</label>
     <input id="command" autocomplete="off" spellcheck="false" placeholder="Magic command, e.g. drc count, extract all, paint m1, irsim, lvs">
   </div>

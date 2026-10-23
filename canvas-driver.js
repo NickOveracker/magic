@@ -11,6 +11,15 @@
 // onInput() asks the app to run them.
 
 import {FloatingWindow, HEADER_HEIGHT} from "./floating-window.js";
+import {t, register} from "./i18n.js";
+
+register({
+    "The last layout window stays open; Magic needs one to work in.":
+        "最後のレイアウトウィンドウは閉じられません。Magic の作業にはウィンドウが 1 つ必要です。",
+    "Magic layout window": "Magic のレイアウトウィンドウ",
+    "Magic color window": "Magic のカラーマップウィンドウ",
+    "Magic netlist window": "Magic のネットリストウィンドウ",
+});
 
 // X11 modifier bits and keysyms, as Magic's macros expect them.
 const SHIFT = 1, LOCK = 2, CONTROL = 4, MOD1 = 8;
@@ -98,7 +107,7 @@ export class CanvasDriver {
                 if(win.client !== "layout" || layouts.length > 1) {
                     this.onCommand(wid, "closewindow");
                 } else {
-                    this.onMessage("The last layout window stays open; Magic needs one to work in.");
+                    this.onMessage(t("The last layout window stays open; Magic needs one to work in."));
                 }
             },
             onChange: () => this.frameChanged(wid),
@@ -106,7 +115,9 @@ export class CanvasDriver {
         const canvas = document.createElement("canvas");
         canvas.className = "magic-canvas";
         canvas.tabIndex = 0;
-        canvas.setAttribute("aria-label", `Magic ${client || "layout"} window`);
+        // Translated again when the language changes (applyStatic in i18n.js).
+        canvas.dataset.i18nAriaLabel = `Magic ${client || "layout"} window`;
+        canvas.setAttribute("aria-label", t(canvas.dataset.i18nAriaLabel));
         const win = {wid, client, fw, canvas, host: fw.body, ctx: null, pointer: null, width: 0, height: 0};
         this.windows.set(wid, win);
         // The app may wrap the canvas in menus and toolbars; it returns the element that holds the canvas.
