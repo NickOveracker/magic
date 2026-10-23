@@ -70,6 +70,25 @@ EFInit()
     EFDevNumTypes = 0;
     EFCompat = TRUE;
 
+    /* Each run learns the resistance classes from the first .ext file
+     * it reads, so that a later run on another technology's files
+     * doesn't find them "changed" ("Re-extract the entire tree...").
+     */
+    efNumResistClasses = 0;
+    efResistChanged = FALSE;
+
+    /* Likewise the scale, which the first .ext file read sets (as
+     * defWrite.c already arranges before reading), and the extraction
+     * style, which the build without Tcl compares with the first file's.
+     */
+    EFScale = 0.0;
+    efScaleChanged = FALSE;
+    if (EFStyle)
+    {
+	freeMagic(EFStyle);
+	EFStyle = NULL;
+    }
+
     HashInit(&efFreeHashTable, 32, HT_WORDKEYS);
     HashInit(&efDefHashTable, INITDEFSIZE, 0);
     HashInit(&efDevParamTable, 8, HT_STRINGKEYS);
