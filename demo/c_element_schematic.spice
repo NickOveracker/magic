@@ -1,0 +1,18 @@
+* Schematic of c_element (C-element), 12 transistors.
+* Written from the layout's extracted netlist, so the transistors are in the layout's
+* order with its sizes; the internal nets have plain names, and, as in any schematic,
+* every p-transistor's body is tied to VDD and every n-transistor's to GND.
+.subckt c_element VDD GND A B C Y
+M1 n1 B n2 GND nfet w=6u l=2u
+M2 n3 B GND GND nfet w=6u l=2u
+M3 Y n1 GND GND nfet w=6u l=2u
+M4 VDD n1 Y VDD pfet w=6u l=2u
+M5 n1 Y n4 VDD pfet w=6u l=2u
+M6 n2 A GND GND nfet w=6u l=2u
+M7 n3 Y n1 GND nfet w=6u l=2u
+M8 VDD A n4 VDD pfet w=6u l=2u
+M9 n4 B VDD VDD pfet w=6u l=2u
+M10 n5 C VDD VDD pfet w=6u l=2u
+M11 n1 B n5 VDD pfet w=6u l=2u
+M12 GND C n3 GND nfet w=6u l=2u
+.ends

@@ -1,0 +1,72 @@
+* Schematic of add2x (2-bit adder block), 66 transistors.
+* Written from the layout's extracted netlist, so the transistors are in the layout's
+* order with its sizes; the internal nets have plain names, and, as in any schematic,
+* every p-transistor's body is tied to VDD and every n-transistor's to GND.
+.subckt add2x VDD GND A B C D E W X Y
+M1 n1 n2 GND GND nfet w=6u l=2u
+M2 GND n3 n4 GND nfet w=6u l=2u
+M3 n5 n2 n6 GND nfet w=6u l=2u
+M4 n2 E GND GND nfet w=6u l=2u
+M5 n7 n8 GND GND nfet w=6u l=2u
+M6 VDD n2 n9 VDD pfet w=6u l=2u
+M7 VDD n3 n10 VDD pfet w=6u l=2u
+M8 GND n3 n1 GND nfet w=6u l=2u
+M9 GND n2 n7 GND nfet w=6u l=2u
+M10 n6 n8 X GND nfet w=6u l=2u
+M11 n4 n2 Y GND nfet w=6u l=2u
+M12 n10 n2 Y VDD pfet w=6u l=2u
+M13 VDD D n3 VDD pfet w=6u l=2u
+M14 n11 n12 VDD VDD pfet w=6u l=2u
+M15 n13 B VDD VDD pfet w=6u l=2u
+M16 VDD A n14 VDD pfet w=6u l=2u
+M17 n15 n11 VDD VDD pfet w=6u l=2u
+M18 n16 B n17 VDD pfet w=6u l=2u
+M19 n18 n2 VDD VDD pfet w=6u l=2u
+M20 GND C n12 GND nfet w=6u l=2u
+M21 n19 C n20 GND nfet w=6u l=2u
+M22 n21 A GND GND nfet w=6u l=2u
+M23 GND A n22 GND nfet w=6u l=2u
+M24 GND n19 n23 GND nfet w=6u l=2u
+M25 n2 E VDD VDD pfet w=6u l=2u
+M26 n24 n2 n25 VDD pfet w=6u l=2u
+M27 VDD A n13 VDD pfet w=6u l=2u
+M28 VDD B n15 VDD pfet w=6u l=2u
+M29 n17 n11 n26 VDD pfet w=6u l=2u
+M30 n8 n23 VDD VDD pfet w=6u l=2u
+M31 n26 n8 n21 GND nfet w=6u l=2u
+M32 n14 B n19 VDD pfet w=6u l=2u
+M33 W n26 VDD VDD pfet w=6u l=2u
+M34 n9 n8 VDD VDD pfet w=6u l=2u
+M35 GND D n3 GND nfet w=6u l=2u
+M36 Y n19 n1 GND nfet w=6u l=2u
+M37 n7 n3 GND GND nfet w=6u l=2u
+M38 X n27 n7 GND nfet w=6u l=2u
+M39 GND n3 n5 GND nfet w=6u l=2u
+M40 n27 n28 GND GND nfet w=6u l=2u
+M41 n9 n3 VDD VDD pfet w=6u l=2u
+M42 Y n19 n18 VDD pfet w=6u l=2u
+M43 n27 n28 VDD VDD pfet w=6u l=2u
+M44 VDD Y n28 VDD pfet w=6u l=2u
+M45 VDD C n12 VDD pfet w=6u l=2u
+M46 GND A n29 GND nfet w=6u l=2u
+M47 GND Y n28 GND nfet w=6u l=2u
+M48 n15 A VDD VDD pfet w=6u l=2u
+M49 n11 n12 GND GND nfet w=6u l=2u
+M50 n20 B GND GND nfet w=6u l=2u
+M51 n21 n11 GND GND nfet w=6u l=2u
+M52 n22 B n30 GND nfet w=6u l=2u
+M53 VDD n3 n18 VDD pfet w=6u l=2u
+M54 n19 C n13 VDD pfet w=6u l=2u
+M55 n26 n8 n15 VDD pfet w=6u l=2u
+M56 VDD A n16 VDD pfet w=6u l=2u
+M57 VDD n19 n23 VDD pfet w=6u l=2u
+M58 VDD n3 n24 VDD pfet w=6u l=2u
+M59 GND A n20 GND nfet w=6u l=2u
+M60 n30 n11 n26 GND nfet w=6u l=2u
+M61 X n27 n9 VDD pfet w=6u l=2u
+M62 n25 n8 X VDD pfet w=6u l=2u
+M63 n29 B n19 GND nfet w=6u l=2u
+M64 GND B n21 GND nfet w=6u l=2u
+M65 W n26 GND GND nfet w=6u l=2u
+M66 n8 n23 GND GND nfet w=6u l=2u
+.ends

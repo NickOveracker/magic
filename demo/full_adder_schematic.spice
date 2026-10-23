@@ -1,0 +1,34 @@
+* Schematic of full_adder (mirror full adder), 28 transistors.
+* Written from the layout's extracted netlist, so the transistors are in the layout's
+* order with its sizes; the internal nets have plain names, and, as in any schematic,
+* every p-transistor's body is tied to VDD and every n-transistor's to GND.
+.subckt full_adder VDD GND A B C X Y
+M1 n1 n2 n3 VDD pfet w=6u l=2u
+M2 n4 C GND GND nfet w=6u l=2u
+M3 n4 A GND GND nfet w=6u l=2u
+M4 n5 B VDD VDD pfet w=6u l=2u
+M5 n6 B n7 VDD pfet w=6u l=2u
+M6 VDD A n8 VDD pfet w=6u l=2u
+M7 n3 C VDD VDD pfet w=6u l=2u
+M8 GND A n9 GND nfet w=6u l=2u
+M9 GND n2 Y GND nfet w=6u l=2u
+M10 n2 C n10 GND nfet w=6u l=2u
+M11 GND A n10 GND nfet w=6u l=2u
+M12 GND A n11 GND nfet w=6u l=2u
+M13 n1 n2 n4 GND nfet w=6u l=2u
+M14 VDD n2 Y VDD pfet w=6u l=2u
+M15 VDD A n5 VDD pfet w=6u l=2u
+M16 n8 B n2 VDD pfet w=6u l=2u
+M17 VDD B n3 VDD pfet w=6u l=2u
+M18 X n1 VDD VDD pfet w=6u l=2u
+M19 GND B n4 GND nfet w=6u l=2u
+M20 n7 C n1 VDD pfet w=6u l=2u
+M21 n9 B n2 GND nfet w=6u l=2u
+M22 n10 B GND GND nfet w=6u l=2u
+M23 X n1 GND GND nfet w=6u l=2u
+M24 n11 B n12 GND nfet w=6u l=2u
+M25 n12 C n1 GND nfet w=6u l=2u
+M26 n2 C n5 VDD pfet w=6u l=2u
+M27 n3 A VDD VDD pfet w=6u l=2u
+M28 VDD A n6 VDD pfet w=6u l=2u
+.ends
