@@ -125,8 +125,9 @@ function fatal(error) {
 // Run a command line in window wid (-1: the topmost layout window), as if typed after ":".
 // The simulation commands (irsim, watchnode…, and loading IRSIM for rsim) are the page's.
 function runIn(wid, command, quiet) {
-    // Magic's quit would end the program, and with it the page.
-    if(/^\s*(quit|exit)\b/.test(command)) {
+    // Magic's quit would end the program, and with it the page.  Magic takes any unambiguous
+    // prefix of a command name, so q, qu and qui are quit too.
+    if(/^\s*(q(u(it?)?)?|exit)(\s|;|$)/.test(command)) {
         print(": " + command, "command");
         print("Magic keeps running in the browser; to start again, load a project or reload the page.", "info");
         return 0;
