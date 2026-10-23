@@ -25,6 +25,7 @@
 import {RsimBridge} from "./rsim.js";
 import {Analyzer} from "./irsim/analyzer.js";
 import {TraceManager} from "./irsim/tracemgr.js";
+import {appUrl, sendProject} from "./handoff.js";
 
 export class Simulation {
     // host: {magic, print, run(wid, line, quiet), capture(wid, line), projectRoot(), desktop, saveBlob,
@@ -206,6 +207,37 @@ export class Simulation {
                     supplies.map(n => (/^v(dd|cc)/i.test(n) ? "h " : "l ") + n).join(", ")}).`, "info");
             }
             this.host.run(wid, "rsim", true);
+        }
+    }
+
+    // The window's cell, extracted afresh to <cell>.sim, to the IRSIM app in a new tab, with
+    // the project's command (.cmd) and parameter (.prm) files.  The app runs <cell>.cmd if there
+    // is one, with the parameters IRSIM last started with here (scmos100 if it hasn't).
+    async sendToIrsim(wid) {
+        const host = this.host, cell = host.windowCell();
+        if(!cell) {
+            host.print("Load a cell first.", "error");
+            return;
+        }
+        host.run(wid, "extract all", false);
+        host.run(wid, `ext2sim ${cell}`, false);
+        const fs = host.magic.FS, root = host.projectRoot(), sim = `${cell}.sim`;
+        const read = path => fs.readFile(`${root}/${path}`);
+        let files;
+        try {
+            files = [{path: sim, data: read(sim)}, ...fs.readdir(root).filter(p => /\.(cmd|prm)$/i.test(p)).map(path => ({path, data: read(path)}))];
+        } catch(e) {
+            host.print(`Magic didn't write ${sim}; see the messages above.`, "error");
+            return;
+        }
+        const prm = (this.bridge.lastArgs || "").split(/\s+/).find(a => a && !a.startsWith("-") && !/\.sim$/i.test(a)) || "scmos100";
+        const cmd = files.some(f => f.path === `${cell}.cmd`) ? `${cell}.cmd` : "";
+        host.print(`Sending ${files.map(f => f.path).join(", ")} to the IRSIM app, in a new tab (parameters ${prm}${
+            cmd ? `, running ${cmd}` : ""}).`, "info");
+        try {
+            await sendProject(appUrl("irsim", new URL("irsim/", import.meta.url)), "magic", {name: cell, files, setup: {prm, cmd}});
+        } catch(error) {
+            host.print(`Couldn't send them: ${error.message}`, "error");
         }
     }
 

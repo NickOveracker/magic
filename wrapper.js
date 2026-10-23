@@ -536,6 +536,11 @@ class LayoutFrame {
                 action: () => this.lvsDialog()},
             {label: "LVS Result", checked: () => lvs.resultWindow.isOpen(),
                 action: () => (lvs.resultWindow.isOpen() ? lvs.resultWindow.close() : lvs.resultWindow.open())},
+            "-",
+            {label: "Open in the IRSIM App", title: "Extract the window's cell and simulate its .sim in the IRSIM web app, in a new tab",
+                disabled: !this.app.simulation, action: () => this.app.simulation.sendToIrsim(this.wid)},
+            {label: "Open in the netgen App", title: "Extract the window's cell and compare it with its schematic in the netgen web app, in a new tab",
+                action: () => lvs.sendToNetgen(this.wid)},
         ];
     }
 

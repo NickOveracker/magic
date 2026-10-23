@@ -138,6 +138,9 @@ body.dragging #desktop::after { content: "Drop files, a folder, or a .zip / .tar
     Options &gt; LVS against a Schematic does the same with a dialog. The cell's pins must be ports
     (<code>port makeall</code>) for netgen to match them. Each demo comes with its schematic; Stixu's layouts have
     no n-well contacts, so their wells float and LVS says so, while the "n-well contact" inverter matches.</p>
+  <p>Options &gt; <b>Open in the IRSIM App</b> and <b>Open in the netgen App</b> extract the cell in the window and open
+    the IRSIM or netgen web app in a new tab with it: IRSIM simulates its .sim (running &lt;cell&gt;.cmd, if the project
+    has one), netgen compares it with the schematic lvs would choose. The files pass from tab to tab in the browser.</p>
   <h2>Projects</h2>
   <p>Project > Open files or Open folder copies .mag files, a folder, or one .zip, .tar or .tar.gz archive into
     the page; you can also drop them on it. The cell that no other cell uses is opened. A .tech file in the

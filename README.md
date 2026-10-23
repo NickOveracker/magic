@@ -94,6 +94,19 @@ with `MAGIC_WEB=1` (see `src/toolchains/emscripten/defs.mak`) and copies
   `inverter_tap` demo has a contact and matches.
 - The default demo is a mirror full adder exported from Stixu and sized for
   speed; `?demo=NAME` picks another file from `demo/`.
+- Two demos come from elsewhere, each in a folder with a README: `demo/tut11a/`,
+  the 4-bit counter from Magic's tutorial 11 (`irsim`, then `@ counter.cmd`,
+  resets it and counts), and `demo/openram/`, four of OpenRAM's cells with its
+  SCN4M_SUBM technology file, schematics and netgen setup (`lvs` matches each;
+  `irsim tsmc35.20.n98t.3.3 dff`, then `@ dff.cmd`, clocks the flip-flop).
+- Options > Open in the IRSIM App and Open in the netgen App extract the
+  window's cell and open the IRSIM or netgen web app in a new tab with it
+  (`handoff.js`): IRSIM gets `<cell>.sim` and the project's `.cmd` and `.prm`
+  files (it runs `<cell>.cmd`, with the parameters IRSIM last started with
+  here), netgen the layout's netlist, the schematic and the setup that `lvs`
+  would choose, and compares them. The files go from tab to tab in the
+  browser; on stixu.io the apps are their own sites (irsim.stixu.io,
+  netgen.stixu.io), elsewhere the submodules' copies next to this page.
 
 ## Notes
 
@@ -116,7 +129,8 @@ Magic's files that this fork changed stay under it; each says so in a notice lis
 
 The web build's new code is under the GNU General Public License, version 2 or (at your option) any later version
 (`licenses/GPL-2.0.txt`): the web app at the top of the repository (HTML, JavaScript, CSS, `build.sh`), the demo
-cells in `demo/`, and the new C files `src/graphics/grWeb.c` and `src/magic/magicWeb.c`. Magic's licence allows
+cells in `demo/` (but not the files from Magic's tutorial in `demo/tut11a/`, which are under Magic's licence, or
+OpenRAM's in `demo/openram/`, under OpenRAM's BSD licence: their README.txt says which are which), and the new C files `src/graphics/grWeb.c` and `src/magic/magicWeb.c`. Magic's licence allows
 combining it with GPL code, so `magic.js` and `magic.wasm`, which contain both, are distributed as a whole under the GPL;
 the page shows Magic's copyright, the absence of warranty and the terms for redistribution in its console when it
 starts.

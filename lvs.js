@@ -19,6 +19,7 @@
 
 import {Session} from "./netgen/session.js";
 import {LvsRunner, ResultWindow} from "./netgen/lvs.js";
+import {appUrl, sendProject} from "./handoff.js";
 
 const NETLIST = /\.(spice|spi|sp|cir|ckt|cdl|net|netlist|v|vg)$/i;
 const BUILT_IN_SETUP = "/setups/scmos.tcl";
@@ -85,11 +86,13 @@ export class Verification {
 
     // ----- lvs
 
-    async lvs(wid, [schematic, schematicCell, setup]) {
+    // Extract the window's cell, and choose the schematic, its cell and the setup; returns
+    // {cell, layout, schematic, schematicCell, setup}, or null (after saying why).
+    prepare(wid, [schematic, schematicCell, setup]) {
         const host = this.host, cell = host.windowCell();
         if(!cell) {
             host.print("lvs compares the cell in the window with a schematic: load a cell first.", "error");
-            return;
+            return null;
         }
         // The layout's netlist, as Magic's LVS flow writes it.
         host.run(wid, "extract all", false);
@@ -101,7 +104,7 @@ export class Verification {
             layoutText = decoder.decode(this.read(layout));
         } catch(e) {
             host.print(`Magic didn't write ${layout}; see the messages above.`, "error");
-            return;
+            return null;
         }
         const header = layoutText.split("\n").find(l => /^\s*\.subckt\s/i.test(l)) || "";
         if(header.trim().split(/\s+/).length <= 2) {
@@ -113,7 +116,7 @@ export class Verification {
         if(schematic) {
             if(!files.includes(schematic)) {
                 host.print(`There is no ${schematic} in the project. Usage: lvs [schematic [cell [setup]]]`, "error");
-                return;
+                return null;
             }
         } else {
             const candidates = files.filter(p => NETLIST.test(p) && p !== layout &&
@@ -127,7 +130,7 @@ export class Verification {
                 host.print(candidates.length ? `Which schematic? The project has ${candidates.join(", ")}: lvs <schematic> [cell [setup]]` :
                     `The project has no schematic netlist to compare ${cell} with. Add one (a SPICE file, for example ` +
                     `${cell}_schematic.spice) with Project > Add files to project, then run lvs.`, "error");
-                return;
+                return null;
             }
         }
         if(!schematicCell || schematicCell === "-") {
@@ -139,8 +142,17 @@ export class Verification {
             setup = files.find(p => /setup.*\.tcl$/i.test(p)) || BUILT_IN_SETUP;
         } else if(setup !== BUILT_IN_SETUP && !files.includes(setup)) {
             host.print(`There is no ${setup} in the project.`, "error");
+            return null;
+        }
+        return {cell, layout, schematic, schematicCell, setup};
+    }
+
+    async lvs(wid, args) {
+        const host = this.host, circuits = this.prepare(wid, args);
+        if(!circuits) {
             return;
         }
+        const {cell, layout, schematic, schematicCell, setup} = circuits;
         host.print(`Comparing the layout of ${cell} with ${schematic}${schematicCell ? `, cell ${schematicCell}` : ""}` +
             `${setup === BUILT_IN_SETUP ? " (netgen's built-in scmos setup)" : ` (setup ${setup})`}.`, "info");
 
@@ -204,6 +216,25 @@ export class Verification {
             "software: you may redistribute it under the terms of the GNU General Public License; About > netgen license shows a copy.",
         "info");
         return true;
+    }
+
+    // The window's layout, with its schematic and setup, to the netgen app in a new tab,
+    // which compares them there.
+    async sendToNetgen(wid) {
+        const host = this.host, circuits = this.prepare(wid, []);
+        if(!circuits) {
+            return;
+        }
+        const {cell, layout, schematic, schematicCell, setup} = circuits;
+        const paths = [layout, schematic, ...(setup === BUILT_IN_SETUP ? [] : [setup])];
+        const project = {name: `${cell}_lvs`, files: paths.map(path => ({path, data: this.read(path)})),
+            compare: {circuit1: [layout, cell], circuit2: [schematic, schematicCell], setup, blackbox: false}};
+        host.print(`Sending ${paths.join(", ")} to the netgen app, in a new tab.`, "info");
+        try {
+            await sendProject(appUrl("netgen", new URL("netgen/", import.meta.url)), "magic", project);
+        } catch(error) {
+            host.print(`Couldn't send them: ${error.message}`, "error");
+        }
     }
 
     stop() {

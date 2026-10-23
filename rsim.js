@@ -109,6 +109,7 @@ export class RsimBridge {
         }
         const irsim = this.irsim = this.spare;
         this.spare = null;
+        this.lastArgs = args;
         const fs = irsim.FS, magicFs = this.host.magic.FS, root = this.host.projectRoot();
         const mkdirs = path => {
             let dir = "";
