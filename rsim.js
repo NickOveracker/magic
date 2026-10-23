@@ -121,8 +121,9 @@ export class RsimBridge {
                 }
             }
         };
-        // Parameter files where IRSIM looks for them by name ($CAD/irsim/prm), and the
-        // files named on the command line, copied from Magic's working folder.
+        // Parameter files where IRSIM looks for them by name ($CAD/irsim/prm), the files
+        // named on the command line, and the project's command files (for "@ file.cmd"),
+        // copied from Magic's working folder.
         for(const prm of this.prms) {
             mkdirs(`/irsim/irsim/prm/${prm.name}.prm`);
             fs.writeFile(`/irsim/irsim/prm/${prm.name}.prm`, prm.data);
@@ -138,6 +139,13 @@ export class RsimBridge {
                 } catch(e) {
                     // Not in Magic's folder: IRSIM looks for it itself
                 }
+            }
+        }
+        for(const name of magicFs.readdir(root).filter(n => /\.cmd$/i.test(n))) {
+            try {
+                fs.writeFile("/work/" + name, magicFs.readFile(`${root}/${name}`));
+            } catch(e) {
+                // Unreadable: IRSIM reports it if the file is used
             }
         }
         fs.chdir("/work");

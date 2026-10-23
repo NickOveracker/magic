@@ -542,9 +542,9 @@ class LayoutFrame {
     async lvsDialog() {
         const lvs = this.app.verification, files = lvs.files();
         const netlists = files.filter(p => /\.(spice|spi|sp|cir|ckt|cdl|net|netlist|v|vg)$/i.test(p) &&
-            !/created from .*\.ext/i.test(new TextDecoder().decode(lvs.read(p).subarray(0, 200))));
+            !/^\* \w+ file created from .*\.ext/i.test(new TextDecoder().decode(lvs.read(p).subarray(0, 200))));
         if(!netlists.length) {
-            this.app.print("The project has no schematic netlist: add one (a SPICE file) with Project > Open files.", "error");
+            this.app.print("The project has no schematic netlist: add one (a SPICE file) with Project > Add files to project.", "error");
             return;
         }
         const setups = [...files.filter(p => /\.tcl$/i.test(p)).map(p => [p, p + " (project)"]), ["/setups/scmos.tcl", "scmos (netgen's built-in setup)"]];

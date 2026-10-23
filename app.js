@@ -30,6 +30,14 @@ const DEMOS = {
     c_element: "C-element",
     inverter: "Inverter",
     inverter_tap: "Inverter with an n-well contact (LVS matches its schematic)",
+    tut11a: "Magic tutorial 11: a 4-bit counter (hierarchy; IRSIM: @ counter.cmd)",
+    openram: "OpenRAM SRAM cells, with their schematics (lvs) and a flip-flop script",
+};
+// Demos that are a folder of files (demo/<name>/): open source layouts with what goes with them.
+const FOLDER_DEMOS = {
+    tut11a: ["tut11a.mag", "tut11b.mag", "tut11c.mag", "tut11d.mag", "tut11a.cmd", "counter.cmd", "README.txt"],
+    openram: ["SCN4M_SUBM.20.tech", "dff.mag", "sense_amp.mag", "tri_gate.mag", "cell_1rw.mag", "dff.sp", "sense_amp.sp",
+        "tri_gate.sp", "cell_1rw.sp", "setup.tcl", "dff.cmd", "LICENSE", "README.txt"],
 };
 // Each demo comes with its schematic, for lvs.
 const DEMO_SCHEMATIC = name => (name === "inverter_tap" ? "inverter_schematic.spice" : `${name}_schematic.spice`);
@@ -566,6 +574,9 @@ function projectMenu() {
     const items = [
         {label: "Open files…", action: () => $("#pick-files").click()},
         {label: "Open folder (copy)…", action: () => $("#pick-folder").click()},
+        {label: "Add files to project…", disabled: !project,
+            title: "Copy files into this project, for example a schematic netlist for lvs or an IRSIM command file",
+            action: () => $("#add-files").click()},
         "-",
         {label: "Work in a folder on disk…", disabled: !diskSupported, title: diskSupported ?
             "Open a folder; files Magic writes are saved into it" : NEEDS_CHROMIUM,
@@ -689,6 +700,18 @@ appForGui.verification = verification;
 
 async function loadDemo(name) {
     setStatus(`Loading ${name}…`);
+    if(FOLDER_DEMOS[name]) {
+        const files = [];
+        for(const path of FOLDER_DEMOS[name]) {
+            const r = await fetch(`demo/${name}/${path}`);
+            if(!r.ok) {
+                throw new Error(`demo/${name}/${path}: ${r.status}`);
+            }
+            files.push({path, data: new Uint8Array(await r.arrayBuffer())});
+        }
+        await loadProject(name, files);
+        return;
+    }
     const response = await fetch(`demo/${name}.mag`);
     if(!response.ok) {
         throw new Error(`demo/${name}.mag: ${response.status}`);
@@ -761,6 +784,23 @@ function refocusCanvas() {
 $("#pick-files").addEventListener("change", event => {
     openFiles(event.target.files);
     event.target.value = "";
+});
+// Files added to the open project: copied into its folder, and saved like any file Magic writes.
+$("#add-files").addEventListener("change", async event => {
+    const list = Array.from(event.target.files);
+    event.target.value = "";
+    if(!project || !list.length) {
+        return;
+    }
+    await attempt(async () => {
+        const added = [];
+        for(const file of await filesFromInput(list)) {
+            magic.FS.writeFile(`${project.root}/${file.path.split("/").pop()}`, file.data);
+            added.push(file.path.split("/").pop());
+        }
+        print(`Added ${added.join(", ")} to ${project.name}`, "info");
+        scheduleSync();
+    });
 });
 $("#pick-folder").addEventListener("change", event => {
     const first = event.target.files[0];

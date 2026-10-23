@@ -46,6 +46,8 @@ with `MAGIC_WEB=1` (see `src/toolchains/emscripten/defs.mak`) and copies
 - Mouse: left and right set the box corners, middle (or Alt+left) paints,
   the wheel scrolls, Ctrl+wheel zooms. Keys are Magic's default macros.
 - `:` (or `;`) moves to the command line below the windows.
+- Project > Add files to project copies files into the open project: a schematic
+  netlist for `lvs`, a setup file, an IRSIM command file.
 - Project > Open files (.mag, .gds, .tech), Open folder, or one .zip/.tar/.tar.gz
   archive, or drop them on the page: the files are copied into memory. The
   cell no other cell uses is opened. Download project runs `writeall force`

@@ -8,7 +8,8 @@
 // extracts the window's cell (extract all, then ext2spice lvs, which writes
 // <cell>.spice), and runs netgen's lvs on it and the schematic: a SPICE (or
 // Verilog) netlist in the project.  Without arguments the schematic is the
-// project's netlist named after the cell with "sch" in it, or else the only
+// project's netlist named after the cell with "sch" in it, or else the one
+// named just like the cell (dff.sp for dff), one with "sch" in it, or the only
 // other netlist; its cell is the subcircuit named like the layout's, or else
 // the last one; the setup is the project's *setup*.tcl, or else netgen's
 // built-in one for scmos.  netgen's report goes into the project as comp.out
@@ -17,7 +18,7 @@
 // netgen is loaded only when lvs is first used, in a Web Worker of its own.
 
 import {Session} from "./netgen/session.js";
-import {LvsRunner, ResultWindow, circuitArg} from "./netgen/lvs.js";
+import {LvsRunner, ResultWindow} from "./netgen/lvs.js";
 
 const NETLIST = /\.(spice|spi|sp|cir|ckt|cdl|net|netlist|v|vg)$/i;
 const BUILT_IN_SETUP = "/setups/scmos.tcl";
@@ -116,14 +117,16 @@ export class Verification {
             }
         } else {
             const candidates = files.filter(p => NETLIST.test(p) && p !== layout &&
-                !/created from .*\.ext/i.test(decoder.decode(this.read(p).subarray(0, 200))));
+                !/^\* \w+ file created from .*\.ext/i.test(decoder.decode(this.read(p).subarray(0, 200))));
             const base = p => p.split("/").pop().toLowerCase();
+            const stem = p => base(p).replace(/\.\w+$/, "");
             schematic = candidates.find(p => base(p).includes(cell.toLowerCase()) && /sch/.test(base(p))) ||
+                candidates.find(p => stem(p) === cell.toLowerCase()) ||
                 candidates.find(p => /sch/.test(base(p))) || (candidates.length === 1 ? candidates[0] : null);
             if(!schematic) {
                 host.print(candidates.length ? `Which schematic? The project has ${candidates.join(", ")}: lvs <schematic> [cell [setup]]` :
                     `The project has no schematic netlist to compare ${cell} with. Add one (a SPICE file, for example ` +
-                    `${cell}_schematic.spice) with Project > Open files, then run lvs.`, "error");
+                    `${cell}_schematic.spice) with Project > Add files to project, then run lvs.`, "error");
                 return;
             }
         }
@@ -138,7 +141,7 @@ export class Verification {
             host.print(`There is no ${setup} in the project.`, "error");
             return;
         }
-        host.print(`Comparing the layout of ${cell} with ${circuitArg([schematic, schematicCell])}` +
+        host.print(`Comparing the layout of ${cell} with ${schematic}${schematicCell ? `, cell ${schematicCell}` : ""}` +
             `${setup === BUILT_IN_SETUP ? " (netgen's built-in scmos setup)" : ` (setup ${setup})`}.`, "info");
 
         if(!await this.start()) {

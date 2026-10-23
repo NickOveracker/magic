@@ -88,7 +88,8 @@ body.dragging #desktop::after { content: "Drop files, a folder, or a .zip / .tar
   <button type="button" id="help-toggle" aria-expanded="false" aria-controls="help">Help</button>
   <span id="status" role="status">Loading…</span>
   <a id="kofi" href="https://ko-fi.com/twentynine" target="_blank" rel="noopener"><span aria-hidden="true">♥</span>Support on Ko-fi</a>
-  <input type="file" id="pick-files" multiple hidden accept=".mag,.gds,.gds2,.tech,.zip,.tar,.tgz,.gz,.ext,.sim,.spice,.cif,.lef,.def">
+  <input type="file" id="pick-files" multiple hidden accept=".mag,.gds,.gds2,.tech,.zip,.tar,.tgz,.gz,.ext,.sim,.spice,.sp,.spi,.cir,.cdl,.net,.v,.tcl,.cmd,.prm,.cif,.lef,.def">
+  <input type="file" id="add-files" multiple hidden accept=".spice,.sp,.spi,.cir,.ckt,.cdl,.net,.netlist,.v,.tcl,.cmd,.prm,.sim,.mag,.tech,.gds,.txt">
   <input type="file" id="pick-folder" webkitdirectory hidden>
 </header>
 
@@ -131,7 +132,7 @@ body.dragging #desktop::after { content: "Drop files, a folder, or a .zip / .tar
     quits IRSIM. Options &gt; IRSIM has the analyzer and node lists.</p>
   <h2>Checking against a schematic (LVS)</h2>
   <p><b>lvs</b> [schematic [cell [setup]]] extracts the cell in the window (<code>ext2spice lvs</code>) and compares it
-    with a schematic netlist in the project, using netgen (loaded only now): it checks that the layout implements the
+    with a schematic netlist in the project (add one with Project &gt; Add files to project), using netgen (loaded only now): it checks that the layout implements the
     same circuit, device for device and net for net. Without arguments it takes the project's netlist with "sch" in its
     name and netgen's setup for scmos. The <b>Result</b> window shows what differs; the report is saved as comp.out.
     Options &gt; LVS against a Schematic does the same with a dialog. The cell's pins must be ports
