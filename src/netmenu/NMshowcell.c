@@ -18,6 +18,14 @@
  *     *********************************************************************
  */
 
+/*
+ * Changes in the WebAssembly fork.
+ * Modified in the WebAssembly fork of Magic, https://github.com/NickOveracker/magic
+ * (branch web).  Changes, with their dates:
+ *   2026-10-22  Add an interactive web build with a canvas graphics driver
+ * End of the changes notice.
+ */
+
 #ifndef lint
 static char rcsid[] __attribute__ ((unused)) = "$Header: /usr/cvsroot/magic-8.0/netmenu/NMshowcell.c,v 1.1.1.1 2008/02/03 20:43:50 tim Exp $";
 #endif  /* not lint */

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 // The web counterpart of Magic's Tcl/Tk wrapper (tcltk/wrapper.tcl and
 // tcltk/toolbar.tcl): every layout window gets the wrapper's menu bar
 // (File, Edit, Cell, Window, Layers, Drc, Options), its title bar with the

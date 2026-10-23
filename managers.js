@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 // The managers from the Tcl wrapper's Options menu, as floating windows:
 // cell manager (tcltk/cellmgr.tcl), library manager (tcltk/libmgr.tcl),
 // technology manager (the techmanager procs in tcltk/wrapper.tcl) and DRC

@@ -20,6 +20,14 @@
  * rcsid $Header: /usr/cvsroot/magic-8.0/dbwind/dbwind.h,v 1.1.1.1 2008/02/03 20:43:50 tim Exp $
  */
 
+/*
+ * Changes in the WebAssembly fork.
+ * Modified in the WebAssembly fork of Magic, https://github.com/NickOveracker/magic
+ * (branch web).  Changes, with their dates:
+ *   2026-10-22  Fall back to the box tool's macros in other tools
+ * End of the changes notice.
+ */
+
 #ifndef _MAGIC__DBWIND__DBWIND_H
 #define _MAGIC__DBWIND__DBWIND_H
 

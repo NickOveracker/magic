@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 // Simulation with IRSIM from the Magic page.
 //
 // Magic's own simulator commands work as on the desktop, through the bridge

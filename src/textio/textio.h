@@ -22,6 +22,14 @@
  * rcsid $Header: /usr/cvsroot/magic-8.0/textio/textio.h,v 1.2 2008/02/18 01:01:35 tim Exp $
  */
 
+/*
+ * Changes in the WebAssembly fork.
+ * Modified in the WebAssembly fork of Magic, https://github.com/NickOveracker/magic
+ * (branch web).  Changes, with their dates:
+ *   2026-10-22  Add an interactive web build with a canvas graphics driver
+ * End of the changes notice.
+ */
+
 #ifndef _MAGIC__TEXTIO__TEXTIO_H
 #define _MAGIC__TEXTIO__TEXTIO_H
 

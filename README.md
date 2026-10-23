@@ -96,7 +96,17 @@ with `MAGIC_WEB=1` (see `src/toolchains/emscripten/defs.mak`) and copies
 
 ## Licences
 
-Magic is under its own licence, in `LICENSE`. The `irsim` submodule is IRSIM, under the GNU General Public License,
-version 2 (its `COPYRIGHT`), with its own notices; the page loads it as a separate WebAssembly module when a
-simulator command first needs it, and shows IRSIM's copyright, warranty and licence notice then. `magic.js`,
-`magic.wasm` and IRSIM's module contain the Emscripten runtime, under the licence in `licenses/emscripten-LICENSE`.
+Magic is under its own licence, in `LICENSE` (Copyright 1985, 1990 Regents of the University of California).
+Magic's files that this fork changed stay under it; each says so in a notice listing its changes and their dates.
+
+The web build's new code is under the GNU General Public License, version 2 or (at your option) any later version
+(`licenses/GPL-2.0.txt`): the web app at the top of the repository (HTML, JavaScript, CSS, `build.sh`), the demo
+cells in `demo/`, and the new C files `src/graphics/grWeb.c` and `src/magic/magicWeb.c`. Magic's licence allows
+combining it with GPL code, so `magic.js` and `magic.wasm`, which contain both, are distributed as a whole under the GPL;
+the page shows Magic's copyright, the absence of warranty and the terms for redistribution in its console when it
+starts.
+
+The `irsim` submodule is IRSIM, under the GNU General Public License, version 2 (its `COPYRIGHT`), with its own
+notices; the page loads it as a separate WebAssembly module when a simulator command first needs it, and shows
+IRSIM's notice then. `magic.js`, `magic.wasm` and IRSIM's module contain the Emscripten runtime, under the licence in
+`licenses/emscripten-LICENSE`.

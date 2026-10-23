@@ -1,3 +1,11 @@
+/*
+ * Changes in the WebAssembly fork.
+ * Modified in the WebAssembly fork of Magic, https://github.com/NickOveracker/magic
+ * (branch web).  Changes, with their dates:
+ *   2026-10-23  Run IRSIM from the page for Magic's simulator commands
+ * End of the changes notice.
+ */
+
 #ifndef _MAGIC__SIM__SIM_H
 #define _MAGIC__SIM__SIM_H
 

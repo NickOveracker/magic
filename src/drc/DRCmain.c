@@ -18,6 +18,14 @@
  *     *********************************************************************
  */
 
+/*
+ * Changes in the WebAssembly fork.
+ * Modified in the WebAssembly fork of Magic, https://github.com/NickOveracker/magic
+ * (branch web).  Changes, with their dates:
+ *   2026-10-22  Add the Tcl/Tk wrapper's window GUI to the web build
+ * End of the changes notice.
+ */
+
 #ifndef	lint
 static char rcsid[] __attribute__ ((unused)) = "$Header: /usr/cvsroot/magic-8.0/drc/DRCmain.c,v 1.4 2010/06/24 12:37:16 tim Exp $";
 #endif	/* not lint */

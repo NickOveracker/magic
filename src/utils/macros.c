@@ -16,6 +16,15 @@
  *     *********************************************************************
  */
 
+/*
+ * Changes in the WebAssembly fork.
+ * Modified in the WebAssembly fork of Magic, https://github.com/NickOveracker/magic
+ * (branch web).  Changes, with their dates:
+ *   2026-10-22  Add an interactive web build with a canvas graphics driver
+ *   2026-10-22  Fall back to the box tool's macros in other tools
+ * End of the changes notice.
+ */
+
 #ifndef lint
 static char rcsid[] __attribute__ ((unused)) = "$Header: /usr/cvsroot/magic-8.0/utils/macros.c,v 1.2 2010/06/24 12:37:58 tim Exp $";
 #endif  /* not lint */

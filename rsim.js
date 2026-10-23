@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 // IRSIM for Magic's simulator commands (rsim, startrsim, simcmd, the rsim
 // tool) in the web build.
 //

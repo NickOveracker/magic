@@ -17,6 +17,14 @@
  *     *********************************************************************
  */
 
+/*
+ * Changes in the WebAssembly fork.
+ * Modified in the WebAssembly fork of Magic, https://github.com/NickOveracker/magic
+ * (branch web).  Changes, with their dates:
+ *   2026-10-23  Let ext2sim and ext2spice use the window's cell in the web build
+ * End of the changes notice.
+ */
+
 #ifndef lint
 static char rcsid[] __attribute__ ((unused)) = "$Header: /usr/cvsroot/magic-8.0/extflat/EFargs.c,v 1.1.1.1 2008/02/03 20:43:50 tim Exp $";
 #endif  /* not lint */

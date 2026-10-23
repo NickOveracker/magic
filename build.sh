@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-2.0-or-later
 # Build Magic for the browser (WEB graphics driver) and copy the result
 # next to the web app at the top of the repository; the source is in src/.
 #

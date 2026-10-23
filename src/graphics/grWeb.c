@@ -16,6 +16,25 @@
  *	that TxDispatchPending() then turns into commands.
  */
 
+/*
+ * Changes in the WebAssembly fork.
+ * Added in the WebAssembly fork of Magic, https://github.com/NickOveracker/magic
+ * (branch web), on 2026-10-22.  Changes, with their dates:
+ *   2026-10-22  Add an interactive web build with a canvas graphics driver
+ *   2026-10-22  Add the Tcl/Tk wrapper's window GUI to the web build
+ * End of the changes notice.
+ */
+
+/*
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ * This file was written for the web build of Magic in the fork at
+ * https://github.com/NickOveracker/magic (branch web), following the
+ * structure of Magic's X11 and Tk drivers, which are under
+ * Magic's licence (the file LICENSE).  This file is distributed under the GNU
+ * General Public License, version 2 or (at your option) any later version
+ * (licenses/GPL-2.0.txt), WITHOUT ANY WARRANTY.
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

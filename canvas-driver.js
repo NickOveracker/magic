@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 // The JavaScript half of Magic's WEB graphics driver (graphics/grWeb.c).
 //
 // grWeb.c calls these methods through Module.magicWeb.  Each Magic window is

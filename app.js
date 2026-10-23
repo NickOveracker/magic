@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 // Magic in the browser: starts the WebAssembly build with the WEB display
 // driver, wires the page's controls to it, and loads projects.
 
@@ -752,6 +753,7 @@ const aboutMenu = [
     {label: "IRSIM upstream source", href: "https://github.com/RTimothyEdwards/irsim"},
     "-",
     {label: "Magic license", href: "https://github.com/NickOveracker/magic/blob/web/LICENSE"},
+    {label: "Web build license (GPL 2 or later)", href: "https://github.com/NickOveracker/magic/blob/web/licenses/GPL-2.0.txt"},
     {label: "IRSIM license (GPL 2)", href: "https://github.com/NickOveracker/irsim/blob/wasm/COPYRIGHT"},
     {label: "Emscripten runtime license (MIT)", href: "https://github.com/NickOveracker/magic/blob/web/licenses/emscripten-LICENSE"},
     "-",
@@ -881,7 +883,18 @@ const driver = new CanvasDriver(desktop, {
     },
 });
 
+// The notice the GNU General Public License asks for when an interactive program starts:
+// copyright, no warranty, redistribution, and where the licences are.
+function announce() {
+    print("Magic 8.3, Copyright (C) 1985, 1990 Regents of the University of California, under Magic's licence; " +
+        "this web build's new code is under the GNU General Public License, version 2 or later, and the built program as a " +
+        "whole is distributed under it.", "info");
+    print("It comes with ABSOLUTELY NO WARRANTY. It is free software: you may redistribute it under these terms; " +
+        "About shows the licences.", "info");
+}
+
 async function start() {
+    announce();
     setStatus("Loading Magic…");
     const [module, magicrc] = await Promise.all([
         createMagic({
