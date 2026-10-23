@@ -4,9 +4,10 @@ An interactive build of Magic for the web: Magic compiled to WebAssembly with a
 new graphics driver (`src/graphics/grWeb.c`) that draws each Magic window on an
 HTML canvas inside a movable, resizable, collapsible window on the page.
 
-The app is at https://nickoveracker.github.io/magic/ and is what this folder
+The app is at https://magic.stixu.io/ and is what this folder
 holds; Magic's own source, with its original README and native build, is in
-`src/`. The old address, `/web/`, redirects there.
+`src/`. The old addresses, nickoveracker.github.io/magic/ and `/web/`,
+redirect there.
 
 ## Build and run
 
