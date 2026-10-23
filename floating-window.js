@@ -7,7 +7,8 @@
 // after every move or resize, so the owner can follow along.
 //
 // topEdgeResizer() makes a panel docked below the desktop (the console)
-// resizable from its top edge.
+// resizable from its top edge, and paneResizer() a side pane (the Files
+// window's list) resizable from its right edge.
 
 const STYLES = `
 .fw-window { position: absolute; display: flex; flex-direction: column; box-sizing: border-box;
@@ -35,6 +36,9 @@ const STYLES = `
   z-index: 1; }
 .fw-grip:focus-visible { outline: none; background: var(--accent); }
 .collapsed > .fw-grip { display: none; }
+.fw-vgrip { flex: none; width: 5px; margin: 0 -2px; cursor: col-resize; touch-action: none; z-index: 1;
+  border-left: 1px solid var(--rule); background-clip: content-box; }
+.fw-vgrip:hover, .fw-vgrip:focus-visible { outline: none; background: var(--accent); }
 `;
 
 function addStyles() {
@@ -280,6 +284,74 @@ export function topEdgeResizer(panel, desktop, {min = 34, minAbove = 120, label 
         if(step) {
             event.preventDefault();
             setHeight(panel.offsetHeight + step * (event.altKey ? 1 : 16));
+        }
+    });
+    return grip;
+}
+
+// A pane beside other content in a flex row, resized by dragging its right edge, or with
+// the edge focused, with the left and right arrow keys.  The pane keeps at least min pixels
+// and leaves at least minRest to the rest of the row.  With a storageKey, the width is
+// remembered in the browser.
+export function paneResizer(pane, {min = 80, minRest = 160, label = "Resize", storageKey = null} = {}) {
+    addStyles();
+    const grip = document.createElement("div");
+    grip.className = "fw-vgrip";
+    grip.tabIndex = 0;
+    grip.title = label;
+    grip.setAttribute("role", "separator");
+    grip.setAttribute("aria-orientation", "vertical");
+    grip.setAttribute("aria-label", label);
+    pane.after(grip);
+    const setWidth = (width, remember) => {
+        const row = pane.parentElement;
+        const max = Math.max(min, row.clientWidth - minRest);
+        pane.style.width = Math.round(Math.min(Math.max(width, min), max)) + "px";
+        pane.style.flex = "none";
+        if(remember && storageKey) {
+            try {
+                localStorage.setItem(storageKey, String(pane.offsetWidth));
+            } catch(e) {
+                // Storage unavailable: the width just isn't remembered
+            }
+        }
+    };
+    if(storageKey) {
+        try {
+            const saved = Number(localStorage.getItem(storageKey));
+            if(saved > 0) {
+                requestAnimationFrame(() => setWidth(saved, false));
+            }
+        } catch(e) {
+            // Storage unavailable
+        }
+    }
+    let start = null;
+    grip.addEventListener("pointerdown", event => {
+        if(event.button === 0) {
+            event.preventDefault();
+            start = {x: event.clientX, width: pane.offsetWidth};
+            grip.setPointerCapture(event.pointerId);
+        }
+    });
+    grip.addEventListener("pointermove", event => {
+        if(start) {
+            setWidth(start.width + event.clientX - start.x, false);
+        }
+    });
+    const stop = () => {
+        if(start) {
+            start = null;
+            setWidth(pane.offsetWidth, true);
+        }
+    };
+    grip.addEventListener("pointerup", stop);
+    grip.addEventListener("pointercancel", stop);
+    grip.addEventListener("keydown", event => {
+        const step = {ArrowLeft: -1, ArrowRight: 1}[event.key];
+        if(step) {
+            event.preventDefault();
+            setWidth(pane.offsetWidth + step * (event.altKey ? 1 : 16), true);
         }
     });
     return grip;
