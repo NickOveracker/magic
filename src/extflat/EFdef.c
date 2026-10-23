@@ -18,6 +18,14 @@
  *     *********************************************************************
  */
 
+/*
+ * Changes in the WebAssembly fork.
+ * Modified in the WebAssembly fork of Magic, https://github.com/NickOveracker/magic
+ * (branch web).  Changes, with their dates:
+ *   2026-10-23  Reset extflat's per-run state in EFInit, so that one session can flatten several technologies
+ * End of the changes notice.
+ */
+
 #ifndef lint
 static char rcsid[] __attribute__ ((unused)) = "$Header: /usr/cvsroot/magic-8.0/extflat/EFdef.c,v 1.2 2008/12/03 14:12:09 tim Exp $";
 #endif  /* not lint */
