@@ -10,6 +10,7 @@ import {menuBar, closeMenus} from "./menu.js";
 import {setHomeFocus} from "./dialog.js";
 import {diskSupported, DiskStore, BrowserStore, recentProjects, reopen, forget} from "./storage.js";
 import {Simulation} from "./simulation.js";
+import {Verification} from "./lvs.js";
 import {topEdgeResizer} from "./floating-window.js";
 
 const $ = selector => document.querySelector(selector);
@@ -28,7 +29,10 @@ const DEMOS = {
     full_adder: "Mirror full adder",
     c_element: "C-element",
     inverter: "Inverter",
+    inverter_tap: "Inverter with an n-well contact (LVS matches its schematic)",
 };
+// Each demo comes with its schematic, for lvs.
+const DEMO_SCHEMATIC = name => (name === "inverter_tap" ? "inverter_schematic.spice" : `${name}_schematic.spice`);
 const DEFAULT_DEMO = "full_adder_path";
 const BUILT_IN_TECHS = ["scmos", "minimum"];
 
@@ -133,7 +137,7 @@ function runIn(wid, command, quiet) {
         print("Magic keeps running in the browser; to start again, load a project or reload the page.", "info");
         return 0;
     }
-    const handled = magic && simulation.frontEnd(wid, command);
+    const handled = magic && (simulation.frontEnd(wid, command) || verification.frontEnd(wid, command));
     if(handled) {
         if(!quiet) {
             print(": " + command, "command");
@@ -660,7 +664,7 @@ const simulation = new Simulation({
     setMode: on => {
         $(".command-row label").textContent = on ? "irsim>" : ":";
         commandInput.placeholder = on ? "IRSIM command (h A, s, ana A Y, d A) · . back to Magic · q quits IRSIM" :
-            "Magic command, e.g. drc count, extract all, paint m1, irsim";
+            "Magic command, e.g. drc count, extract all, paint m1, irsim, lvs";
         if(on) {
             openCommandLine();
         }
@@ -669,13 +673,32 @@ const simulation = new Simulation({
 });
 appForGui.simulation = simulation;
 
+const verification = new Verification({
+    get magic() {
+        return magic;
+    },
+    print,
+    run: magicRun,
+    projectRoot: () => (project ? project.root : magic.FS.cwd()),
+    desktop,
+    saveBlob,
+    windowCell: () => simulation.host.windowCell(),
+    filesChanged: () => scheduleSync(),
+});
+appForGui.verification = verification;
+
 async function loadDemo(name) {
     setStatus(`Loading ${name}…`);
     const response = await fetch(`demo/${name}.mag`);
     if(!response.ok) {
         throw new Error(`demo/${name}.mag: ${response.status}`);
     }
-    await loadProject(name, [{path: name + ".mag", data: new Uint8Array(await response.arrayBuffer())}]);
+    const files = [{path: name + ".mag", data: new Uint8Array(await response.arrayBuffer())}];
+    const schematic = await fetch(`demo/${DEMO_SCHEMATIC(name)}`);
+    if(schematic.ok) {
+        files.push({path: DEMO_SCHEMATIC(name), data: new Uint8Array(await schematic.arrayBuffer())});
+    }
+    await loadProject(name, files);
 }
 
 // ----- Command line
@@ -751,14 +774,19 @@ const aboutMenu = [
     {label: "Magic upstream source", href: "https://github.com/RTimothyEdwards/magic"},
     {label: "IRSIM (Open Circuit Design)", href: "https://opencircuitdesign.com/irsim/"},
     {label: "IRSIM upstream source", href: "https://github.com/RTimothyEdwards/irsim"},
+    {label: "netgen (Open Circuit Design)", href: "https://opencircuitdesign.com/netgen/"},
+    {label: "netgen upstream source", href: "https://github.com/RTimothyEdwards/netgen"},
     "-",
     {label: "Magic license", href: "https://github.com/NickOveracker/magic/blob/web/LICENSE"},
     {label: "Web build license (GPL 2 or later)", href: "https://github.com/NickOveracker/magic/blob/web/licenses/GPL-2.0.txt"},
     {label: "IRSIM license (GPL 2)", href: "https://github.com/NickOveracker/irsim/blob/wasm/COPYRIGHT"},
+    {label: "netgen license (GPL)", href: "https://github.com/NickOveracker/netgen/blob/wasm/Copying"},
+    {label: "Tcl license (in netgen)", href: "https://github.com/NickOveracker/netgen/blob/wasm/licenses/tcl-license.terms"},
     {label: "Emscripten runtime license (MIT)", href: "https://github.com/NickOveracker/magic/blob/web/licenses/emscripten-LICENSE"},
     "-",
     {label: "This web app's source", href: "https://github.com/NickOveracker/magic/tree/web"},
     {label: "IRSIM web app's source", href: "https://github.com/NickOveracker/irsim/tree/wasm"},
+    {label: "netgen web app's source", href: "https://github.com/NickOveracker/netgen/tree/wasm"},
 ];
 $("#top-menus").appendChild(menuBar([["Project", projectMenu], ["Demos", demoMenu], ["About", aboutMenu]], "Page menu",
     {onDone: () => refocusCanvas()}));
@@ -925,7 +953,7 @@ async function start() {
 start().catch(fatal);
 
 // For tests and the console.
-window.magicApp = {run, runIn, runCapture, query, loadProject, gui, simulation, openStore, keepProject, syncProject,
+window.magicApp = {run, runIn, runCapture, query, loadProject, gui, simulation, verification, openStore, keepProject, syncProject,
     BrowserStore, recentProjects, get module() {
     return magic;
 }, driver, get project() {

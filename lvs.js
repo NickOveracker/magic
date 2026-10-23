@@ -1,0 +1,209 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+// LVS from the Magic page: compare the layout in the window with a schematic,
+// using netgen from the netgen submodule (netgen/), as the irsim command uses
+// IRSIM from the irsim submodule.
+//
+//   lvs [schematic [cell [setup]]]          (cell "-": choose it as below)
+//
+// extracts the window's cell (extract all, then ext2spice lvs, which writes
+// <cell>.spice), and runs netgen's lvs on it and the schematic: a SPICE (or
+// Verilog) netlist in the project.  Without arguments the schematic is the
+// project's netlist named after the cell with "sch" in it, or else the only
+// other netlist; its cell is the subcircuit named like the layout's, or else
+// the last one; the setup is the project's *setup*.tcl, or else netgen's
+// built-in one for scmos.  netgen's report goes into the project as comp.out
+// and comp.json, and the Result window (from netgen/lvs.js) shows it.
+//
+// netgen is loaded only when lvs is first used, in a Web Worker of its own.
+
+import {Session} from "./netgen/session.js";
+import {LvsRunner, ResultWindow, circuitArg} from "./netgen/lvs.js";
+
+const NETLIST = /\.(spice|spi|sp|cir|ckt|cdl|net|netlist|v|vg)$/i;
+const BUILT_IN_SETUP = "/setups/scmos.tcl";
+const decoder = new TextDecoder();
+
+export class Verification {
+    // host: {magic, print(text, kind), run(wid, line, quiet), projectRoot(), desktop, saveBlob,
+    //        windowCell(), filesChanged()}
+    constructor(host) {
+        this.host = host;
+        this.session = null;
+        this.result = null;
+        this.runner = new LvsRunner({
+            run: async (command, {echo}) => {
+                if(echo) {
+                    host.print("netgen> " + command, "command");
+                }
+                const reply = await this.session.run(command);
+                if(!reply.ended && reply.result) {
+                    host.print(reply.result, reply.code === 0 ? null : "error");
+                }
+                return reply;
+            },
+            readFile: path => this.session.readFile(path),
+        });
+        this.resultWindow = new ResultWindow({desktop: host.desktop, saveBlob: host.saveBlob, result: () => this.result,
+            emptyText: () => "Run lvs (or Options > LVS against a Schematic) to compare the layout with its schematic."});
+    }
+
+    get busy() {
+        return Boolean(this.session?.busy);
+    }
+
+    // The page's lvs command; returns a promise if it took the line, otherwise null.
+    frontEnd(wid, line) {
+        const [cmd, ...args] = line.trim().split(/\s+/);
+        return cmd === "lvs" ? this.lvs(wid, args) : null;
+    }
+
+    // ----- The project's files, in Magic's file system
+
+    files() {
+        const fs = this.host.magic.FS, root = this.host.projectRoot(), out = [];
+        const walk = (dir, prefix) => {
+            for(const name of fs.readdir(dir)) {
+                if(name === "." || name === "..") {
+                    continue;
+                }
+                const path = dir + "/" + name;
+                fs.isDir(fs.stat(path).mode) ? walk(path, prefix + name + "/") : out.push(prefix + name);
+            }
+        };
+        walk(root, "");
+        return out;
+    }
+
+    read(path) {
+        return this.host.magic.FS.readFile(`${this.host.projectRoot()}/${path}`);
+    }
+
+    subcircuits(path) {
+        return [...decoder.decode(this.read(path)).matchAll(/^\s*\.subckt\s+(\S+)/gim)].map(m => m[1]);
+    }
+
+    // ----- lvs
+
+    async lvs(wid, [schematic, schematicCell, setup]) {
+        const host = this.host, cell = host.windowCell();
+        if(!cell) {
+            host.print("lvs compares the cell in the window with a schematic: load a cell first.", "error");
+            return;
+        }
+        // The layout's netlist, as Magic's LVS flow writes it.
+        host.run(wid, "extract all", false);
+        host.run(wid, "ext2spice lvs", false);
+        host.run(wid, "ext2spice", false);
+        const layout = `${cell}.spice`;
+        let layoutText;
+        try {
+            layoutText = decoder.decode(this.read(layout));
+        } catch(e) {
+            host.print(`Magic didn't write ${layout}; see the messages above.`, "error");
+            return;
+        }
+        const header = layoutText.split("\n").find(l => /^\s*\.subckt\s/i.test(l)) || "";
+        if(header.trim().split(/\s+/).length <= 2) {
+            host.print(`${cell} declares no ports, so netgen can't match its pins with the schematic's. ` +
+                "Make the pin labels ports (select the labels, then port make; or port makeall for every label) and run lvs again.", "info");
+        }
+        // The schematic.
+        const files = this.files();
+        if(schematic) {
+            if(!files.includes(schematic)) {
+                host.print(`There is no ${schematic} in the project. Usage: lvs [schematic [cell [setup]]]`, "error");
+                return;
+            }
+        } else {
+            const candidates = files.filter(p => NETLIST.test(p) && p !== layout &&
+                !/created from .*\.ext/i.test(decoder.decode(this.read(p).subarray(0, 200))));
+            const base = p => p.split("/").pop().toLowerCase();
+            schematic = candidates.find(p => base(p).includes(cell.toLowerCase()) && /sch/.test(base(p))) ||
+                candidates.find(p => /sch/.test(base(p))) || (candidates.length === 1 ? candidates[0] : null);
+            if(!schematic) {
+                host.print(candidates.length ? `Which schematic? The project has ${candidates.join(", ")}: lvs <schematic> [cell [setup]]` :
+                    `The project has no schematic netlist to compare ${cell} with. Add one (a SPICE file, for example ` +
+                    `${cell}_schematic.spice) with Project > Open files, then run lvs.`, "error");
+                return;
+            }
+        }
+        if(!schematicCell || schematicCell === "-") {
+            const cells = this.subcircuits(schematic);
+            schematicCell = cells.find(c => c.toLowerCase() === cell.toLowerCase()) || cells[cells.length - 1] || "";
+        }
+        // The setup.
+        if(!setup) {
+            setup = files.find(p => /setup.*\.tcl$/i.test(p)) || BUILT_IN_SETUP;
+        } else if(setup !== BUILT_IN_SETUP && !files.includes(setup)) {
+            host.print(`There is no ${setup} in the project.`, "error");
+            return;
+        }
+        host.print(`Comparing the layout of ${cell} with ${circuitArg([schematic, schematicCell])}` +
+            `${setup === BUILT_IN_SETUP ? " (netgen's built-in scmos setup)" : ` (setup ${setup})`}.`, "info");
+
+        if(!await this.start()) {
+            return;
+        }
+        for(const path of [layout, schematic, ...(setup === BUILT_IN_SETUP ? [] : [setup])]) {
+            await this.session.writeFile(path, this.read(path));
+        }
+        const result = await this.runner.compare({circuit1: [layout, cell], circuit2: [schematic, schematicCell], setup, blackbox: false});
+        if(!result) {
+            return;
+        }
+        this.result = result;
+        // netgen's report into the project, as native netgen would leave it.
+        const root = host.projectRoot(), fs = host.magic.FS;
+        fs.writeFile(`${root}/comp.out`, result.report);
+        if(result.json) {
+            fs.writeFile(`${root}/comp.json`, JSON.stringify(result.json, null, 1));
+        }
+        host.filesChanged();
+        host.print(`LVS: ${result.final} (comp.out and comp.json in the project)`, result.kind === "pass" ? "info" : "error");
+        this.resultWindow.open();
+        this.resultWindow.render();
+    }
+
+    // Load netgen the first time, with its built-in setup.
+    async start() {
+        if(this.session?.started) {
+            return true;
+        }
+        const host = this.host;
+        host.print("Loading netgen…", "info");
+        this.session = new Session({
+            onOutput: (text, error) => {
+                if(error) {
+                    this.runner.noteError(text);
+                }
+                host.print(text, error ? "error" : null);
+            },
+        });
+        const files = [];
+        const response = await fetch(new URL("netgen/setups/scmos.tcl", import.meta.url));
+        if(response.ok) {
+            files.push({path: BUILT_IN_SETUP, data: new Uint8Array(await response.arrayBuffer())});
+        }
+        let ok = false;
+        try {
+            ok = await this.session.start(files);
+        } catch(error) {
+            host.print(`Couldn't load netgen: ${error.message || error}`, "error");
+            return false;
+        }
+        if(!ok) {
+            host.print("netgen could not start.", "error");
+            return false;
+        }
+        // The notice the GNU General Public License asks for when an interactive program starts.
+        host.print("netgen, Copyright 1990, 1991, 2002, 2004, 2005 Massimo A. Sivilotti, Caltech, and R. Timothy Edwards, " +
+            "MultiGiG, Inc., changed for this WebAssembly build in 2026. netgen comes with ABSOLUTELY NO WARRANTY. It is free " +
+            "software: you may redistribute it under the terms of the GNU General Public License; About > netgen license shows a copy.",
+        "info");
+        return true;
+    }
+
+    stop() {
+        this.session?.stop();
+    }
+}

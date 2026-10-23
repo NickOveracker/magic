@@ -11,7 +11,7 @@ redirect there.
 
 ## Build and run
 
-    git submodule update --init irsim          # IRSIM, for the simulator commands
+    git submodule update --init irsim netgen   # IRSIM for the simulator commands, netgen for lvs
     EMSDK_DIR=/path/to/emsdk ./build.sh        # --debug for a -g build
     python3 -m http.server                     # from the repository root
     # open http://localhost:8000/
@@ -37,6 +37,7 @@ with `MAGIC_WEB=1` (see `src/toolchains/emscripten/defs.mak`) and copies
 | `menu.js`, `dialog.js` | Drop-down menus and the prompt dialogs. |
 | `src/sim/SimRsim.c` | Magic's simulator interface. Under `MAGIC_WEB` the process and its two pipes are replaced by calls to `Module.magicRsim` (start, write, read, stop), and the `rsim` prompt loop by `magic_web_rsim_line`, one line at a time. |
 | `rsim.js` | That bridge: runs IRSIM from the `irsim` submodule (`irsim/irsim.js`) as a second WebAssembly module, loaded on first use and dropped on `q`. |
+| `lvs.js` | The page's `lvs` command: extract with `ext2spice lvs`, then compare with a schematic using netgen from the `netgen` submodule (its `session.js` and `lvs.js`, which also gives the Result window), loaded on first use. |
 | `simulation.js` | The Tcl integration's `irsim`, `watchnode`, `unwatchnode` and `watchtime`, and the IRSIM app's analyzer and node lists fed from the same simulator. |
 | `app.js` | Page logic: console, command line, project loading, download, demos. |
 
@@ -77,6 +78,18 @@ with `MAGIC_WEB=1` (see `src/toolchains/emscripten/defs.mak`) and copies
   selected node with its value and keeps it up to date. IRSIM's supplies are
   `Vdd` and `Gnd`: a cell labelled `VDD`/`GND` needs `h VDD` and `l GND` first.
   Files named on the IRSIM command line are copied from the project folder.
+- LVS: `lvs [schematic [cell [setup]]]` extracts the window's cell (`extract all`,
+  `ext2spice lvs`, `ext2spice`) and compares the netlist with a schematic in the
+  project, using netgen from the `netgen` submodule in its own Web Worker. By
+  default the schematic is the project's netlist with "sch" in its name, its cell
+  the subcircuit named like the layout's, and the setup the project's
+  `*setup*.tcl` or netgen's built-in one for scmos. The report goes into the
+  project as `comp.out` and `comp.json`, and netgen's Result window shows it.
+  Options > LVS against a Schematic does the same with a dialog. The demo cells'
+  labels are ports, and each demo has its schematic in `demo/` (written from the
+  layout's netlist, with the p-transistors' bodies on VDD): Stixu's layouts have
+  no n-well contacts, so LVS reports their floating wells; the
+  `inverter_tap` demo has a contact and matches.
 - The default demo is a mirror full adder exported from Stixu and sized for
   speed; `?demo=NAME` picks another file from `demo/`.
 
@@ -108,5 +121,7 @@ starts.
 
 The `irsim` submodule is IRSIM, under the GNU General Public License, version 2 (its `COPYRIGHT`), with its own
 notices; the page loads it as a separate WebAssembly module when a simulator command first needs it, and shows
-IRSIM's notice then. `magic.js`, `magic.wasm` and IRSIM's module contain the Emscripten runtime, under the licence in
+IRSIM's notice then. The `netgen` submodule is netgen, under the GNU General Public License (its `Copying`; the
+fork's new code under version 2 or later), with Tcl inside its module (its `licenses/`); the page loads it when `lvs`
+is first used, and shows netgen's notice then. `magic.js`, `magic.wasm` and IRSIM's module contain the Emscripten runtime, under the licence in
 `licenses/emscripten-LICENSE`.

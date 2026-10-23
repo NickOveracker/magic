@@ -496,6 +496,7 @@ class LayoutFrame {
             {label: "Crosshair", checked: () => gui.opts.crosshair, action: () => gui.setCrosshair(!gui.opts.crosshair)},
             "-",
             ...this.simulationItems(),
+            ...this.lvsItems(),
         ];
 
         return [["File", file], ["Edit", edit], ["Cell", cell], ["Window", windowMenu], ["Layers", layers],
@@ -521,6 +522,41 @@ class LayoutFrame {
             {label: "Watch Selected Nodes", disabled: !sim.running, title: sim.running ? "watchnode: label the selected paint's nodes with their values" : notRunning,
                 action: () => this.app.run(this.wid, "watchnode", false)},
         ];
+    }
+
+    // LVS with netgen, through lvs.js: compare the window's cell with a schematic, and the Result window.
+    lvsItems() {
+        const lvs = this.app.verification;
+        if(!lvs) {
+            return [];
+        }
+        return [
+            "-",
+            {label: "LVS against a Schematic…", title: "Extract the window's cell and compare it with a schematic netlist (the lvs command)",
+                action: () => this.lvsDialog()},
+            {label: "LVS Result", checked: () => lvs.resultWindow.isOpen(),
+                action: () => (lvs.resultWindow.isOpen() ? lvs.resultWindow.close() : lvs.resultWindow.open())},
+        ];
+    }
+
+    async lvsDialog() {
+        const lvs = this.app.verification, files = lvs.files();
+        const netlists = files.filter(p => /\.(spice|spi|sp|cir|ckt|cdl|net|netlist|v|vg)$/i.test(p) &&
+            !/created from .*\.ext/i.test(new TextDecoder().decode(lvs.read(p).subarray(0, 200))));
+        if(!netlists.length) {
+            this.app.print("The project has no schematic netlist: add one (a SPICE file) with Project > Open files.", "error");
+            return;
+        }
+        const setups = [...files.filter(p => /\.tcl$/i.test(p)).map(p => [p, p + " (project)"]), ["/setups/scmos.tcl", "scmos (netgen's built-in setup)"]];
+        const v = await ask({title: "LVS against a schematic", message: "Extracts the cell in this window and compares it with the schematic.",
+            fields: [
+                {name: "schematic", label: "Schematic netlist", options: netlists.map(p => [p, p])},
+                {name: "cell", label: "Cell in it (empty: the one named like the layout, or the last)", value: ""},
+                {name: "setup", label: "Setup", options: setups},
+            ], ok: "Run LVS"});
+        if(v) {
+            this.app.run(this.wid, ["lvs", v.schematic, v.cell.trim() || "-", v.setup].join(" "), false);
+        }
     }
 
     // ----- Menu actions that need a dialog

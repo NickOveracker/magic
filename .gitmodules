@@ -2,3 +2,7 @@
 	path = irsim
 	url = https://github.com/NickOveracker/irsim.git
 	branch = wasm
+[submodule "netgen"]
+	path = netgen
+	url = https://github.com/NickOveracker/netgen.git
+	branch = wasm
