@@ -93,3 +93,10 @@ with `MAGIC_WEB=1` (see `src/toolchains/emscripten/defs.mak`) and copies
 - Interactive macros (`imacro`) and commands that ask a question on the
   terminal fall back to the browser's prompt dialog.
 - Files live in Emscripten's in-memory file system until downloaded.
+
+## Licences
+
+Magic is under its own licence, in `LICENSE`. The `irsim` submodule is IRSIM, under the GNU General Public License,
+version 2 (its `COPYRIGHT`), with its own notices; the page loads it as a separate WebAssembly module when a
+simulator command first needs it, and shows IRSIM's copyright, warranty and licence notice then. `magic.js`,
+`magic.wasm` and IRSIM's module contain the Emscripten runtime, under the licence in `licenses/emscripten-LICENSE`.

@@ -146,6 +146,13 @@ export class Simulation {
             this.host.print("Loading IRSIM…", "info");
             try {
                 await this.bridge.load();
+                if(!this.announced) {
+                    // The notice the GNU General Public License asks for when an interactive program starts.
+                    this.announced = true;
+                    this.host.print("IRSIM 9.7, Copyright (C) 1988, 1990 Stanford University, changed for this WebAssembly " +
+                        "build in 2026. IRSIM comes with ABSOLUTELY NO WARRANTY. It is free software: you may redistribute it " +
+                        "under the terms of the GNU General Public License; About > IRSIM license shows a copy.", "info");
+                }
             } catch(error) {
                 this.host.print(`Couldn't load IRSIM: ${error.message || error}`, "error");
                 throw error;

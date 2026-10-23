@@ -753,7 +753,7 @@ const aboutMenu = [
     "-",
     {label: "Magic license", href: "https://github.com/NickOveracker/magic/blob/web/LICENSE"},
     {label: "IRSIM license (GPL 2)", href: "https://github.com/NickOveracker/irsim/blob/wasm/COPYRIGHT"},
-    {label: "Emscripten runtime license (MIT)", href: "https://github.com/emscripten-core/emscripten/blob/main/LICENSE"},
+    {label: "Emscripten runtime license (MIT)", href: "https://github.com/NickOveracker/magic/blob/web/licenses/emscripten-LICENSE"},
     "-",
     {label: "This web app's source", href: "https://github.com/NickOveracker/magic/tree/web"},
     {label: "IRSIM web app's source", href: "https://github.com/NickOveracker/irsim/tree/wasm"},
